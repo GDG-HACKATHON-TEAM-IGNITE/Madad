@@ -1,5 +1,7 @@
 import { initializeApp } from "firebase/app";
 import { getAuth, GoogleAuthProvider } from "firebase/auth";
+import { getMessaging } from "firebase/messaging";
+
 
 const firebaseConfig = {
   apiKey: "AIzaSyDAiOhBkMxaGAB-5cChQnD9b9Er_3hoWck",
@@ -13,3 +15,4 @@ const firebaseConfig = {
 export const app = initializeApp(firebaseConfig);
 export const auth = getAuth(app);
 export const googleProvider = new GoogleAuthProvider();
+export const messaging = getMessaging(app);
