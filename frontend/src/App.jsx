@@ -7,8 +7,11 @@ import { auth, googleProvider } from "./config/firebase-config";
 import { onAuthStateChanged, signInWithPopup } from "firebase/auth";
 import { messaging } from "./config/firebase-config";
 import { getToken } from "firebase/messaging";
+// import Policemap from "./pages/Policemap";
+import SOSButton from "./components/SosButton";
 
 function App() {
+
   async function requestPermission() {
     console.log(Notification.permission);
 
@@ -23,6 +26,7 @@ function App() {
       // Send this token  to server ( db)
     } else if (permission === "denied") {
       alert("You denied for the notification");
+       return;
     }
   }
 
@@ -30,13 +34,14 @@ function App() {
     // Req user for notification permission
     requestPermission();
   }, []);
+////////////////////////////////////////////////////////////////////////
 
   //authentication
   const [isAuth, setIsAuth] = useState(
     window.localStorage.getItem("auth") === "true"
   );
 
-  const [token, setToken] = useState("");
+  const [authToken, setAuthToken] = useState("");
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
@@ -44,11 +49,11 @@ function App() {
         setIsAuth(true);
         window.localStorage.setItem("auth", "true");
         const token = await user.getIdToken();
-        setToken(token);
+        setAuthToken(token);
       } else {
         setIsAuth(false);
         window.localStorage.removeItem("auth");
-        setToken("");
+        setAuthToken("");
       }
     });
 
@@ -70,12 +75,16 @@ function App() {
   return (
     <div className="App">
       {isAuth ? (
-        <UserDetails token={token} />
+        <UserDetails token={authToken} />
       ) : (
-        <button onClick={loginWithGoogle}>Login with Google</button>
+        <>
+          <button onClick={loginWithGoogle}>Login with Google</button>
+          <SOSButton />
+        </>
       )}
     </div>
   );
 }
 
 export default App;
+//fixed same token name bug....
