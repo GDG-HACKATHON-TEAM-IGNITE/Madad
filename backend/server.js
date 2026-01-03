@@ -2,7 +2,7 @@ import express from "express";
 import dotenv from "dotenv";
 dotenv.config();
 import cors from "cors";
-// import { decodeToken } from "./middleware/auth.js"; //require service.json , comment out to test chatapi
+import { decodeToken } from "./middleware/auth.js"; //require service.json , comment out to test chatapi
 import user from "./controllers/user.js";
 import connectDB from "./config/db.js";
 import { Server } from "socket.io";
@@ -16,7 +16,7 @@ const app = express();
 app.use(express.json());
 app.use(cors());
 
-// app.post("/api/user", decodeToken, user); //require service.json comment out to test chatapi
+app.post("/api/user", decodeToken, user); //require service.json comment out to test chatapi
 //routes
 
 //chat bot implementation
