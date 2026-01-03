@@ -5,6 +5,7 @@ export const useSOSLocation = () => {
   const watchIdRef = useRef(null);
 
   const startSOS = () => {
+    socket.emit("register-user", { userId });
     if (!navigator.geolocation) {
       alert("Geolocation not supported");
       return;
@@ -36,6 +37,7 @@ export const useSOSLocation = () => {
       navigator.geolocation.clearWatch(watchIdRef.current);
       watchIdRef.current = null;
       console.log(`location stopped`)
+      socket.disconnect();
     }
   };
 

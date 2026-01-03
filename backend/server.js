@@ -27,6 +27,8 @@ app.post('/api/user', decodeToken, user);
 
 const server = http.createServer(app);
 const io = new Server(server, {
+    pingInterval: 5000, // 5 sec
+  pingTimeout: 3000 ,  // 3 sec
    cors: {
     origin: process.env.port,
     methods: ["GET", "POST"],
@@ -42,15 +44,15 @@ initSockets(io);
 
 
 
-let dbinfo;
+
 try {
-	 dbinfo = await connectDB();
-	console.log(dbinfo)
+await connectDB();
+server.listen(port, () => {
+	console.log(`server is running on port ${port}`);
+});  
 } catch (error) {
 	console.log(error)
 }
-server.listen(port, () => {
-	console.log(`server is running on port ${port}`);
-});
+
 
 

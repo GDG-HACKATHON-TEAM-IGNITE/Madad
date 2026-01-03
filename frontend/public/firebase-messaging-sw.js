@@ -28,3 +28,23 @@ messaging.onBackgroundMessage((payload) => {
 
   self.registration.showNotification(notificationTitle, notificationOptions);
 });
+
+
+
+//////////////////////////
+// This file runs even when app is closed
+
+self.addEventListener("notificationclick", (event) => {
+  event.notification.close();
+
+  const data = event.notification?.data || {};
+
+  if (data.click_action === "OPEN_MAP") {
+    event.waitUntil(
+      clients.openWindow(
+        `Route.....dena he...with lognitude latitude in quary`
+      )
+    );
+  }
+});
+//later store in db...

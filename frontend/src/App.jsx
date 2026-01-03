@@ -9,8 +9,12 @@ import { messaging } from "./config/firebase-config";
 import { getToken } from "firebase/messaging";
 // import Policemap from "./pages/Policemap";
 import SOSButton from "./components/SosButton";
+import PoliceLiveDashboard from "./pages/Policemap";
+import HelpMate from "./pages/helpMate";
 
 function App() {
+  if ("serviceWorker" in navigator) {
+  navigator.serviceWorker.register("/firebase-messaging-sw.js");
 
   async function requestPermission() {
     console.log(Notification.permission);
@@ -72,6 +76,7 @@ function App() {
     }
   };
 
+}
   return (
     <div className="App">
       {isAuth ? (
@@ -80,6 +85,8 @@ function App() {
         <>
           <button onClick={loginWithGoogle}>Login with Google</button>
           <SOSButton />
+          <PoliceLiveDashboard/>
+          <HelpMate/>
         </>
       )}
     </div>
