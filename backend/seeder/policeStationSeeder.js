@@ -1,87 +1,62 @@
-import mongoose from "mongoose";
-import dotenv from "dotenv";
-import policeStation from "../models/policeStation.model.js";
+//  import mongoose from "mongoose";
+// import PoliceStation from "../models/policeStation.model.js";
 
-dotenv.config();
+// const MONGO_URI = "mongodb://127.0.0.1:27017";
 
-const connectDB = async () => {
-  try {
-    await mongoose.connect(process.env.MONGODB_URL);
-    console.log("MongoDB connected");
-  } catch (err) {
-    console.error("DB connection failed", err);
-    process.exit(1);
-  }
-};
+// const seedPoliceStation = async () => {
+//   try {
+//     await mongoose.connect(MONGO_URI);
 
-const PoliceStations = [
-  {
-    policeId: "PS001",
-    stationName: "Bhubaneswar Central Police Station",
-    district: "Bhubaneswar",
-    location: { lat: 20.2961, lng: 85.8245 },
-  },
-  {
-    policeId: "PS002",
-    stationName: "Cuttack Town Police Station",
-    district: "Cuttack",
-    location: { lat: 20.4625, lng: 85.883 },
-  },
-  {
-    policeId: "PS003",
-    stationName: "Puri Sea Beach Police Station",
-    district: "Puri",
-    location: { lat: 19.8135, lng: 85.8312 },
-  },
-  {
-    policeId: "PS004",
-    stationName: "Sundargram Police Station",
-    district: "Cuttack",
-    location: { lat: 20.4012, lng: 85.8456 }, // fake but realistic
-  },
-  {
-    policeId: "PS005",
-    stationName: "Sundargram East Police Outpost",
-    district: "Cuttack",
-    location: { lat: 20.4058, lng: 85.8519 },
-  },
-  {
-    policeId: "PS006",
-    stationName: "Sundargram West Police Checkpost",
-    district: "Cuttack",
-    location: { lat: 20.3967, lng: 85.8382 },
-  },
-  {
-    policeId: "PS005",
-    stationName: "Burla VSSUT Police Station",
-    district: "Sambalpur",
-    location: { lat: 21.4927, lng: 83.9028 } // near VSSUT Burla
-  },
+//     await PoliceStation.create({
+//       _id: new mongoose.Types.ObjectId("65bb11111111111111111111"),
+//       stationName: "Park Street PS",
+//       location: {
+//         type: "Point",
+//         coordinates: [88.3650, 22.5728], // [lng, lat]
+//       },
+//       fcmTokens: ["FCM_TOKEN_POLICE"],
+//     });
 
-  /* 🔹 Extra nearby fake stations (useful for testing radius logic) */
-  {
-    policeId: "PS006",
-    stationName: "Burla Town Police Outpost",
-    district: "Sambalpur",
-    location: { lat: 21.4891, lng: 83.9062 }
-  }
-];
+//     console.log("✅ Police Station seeded");
+//     process.exit(0);
+//   } catch (error) {
+//     console.error("❌ Seeder error:", error);
+//     process.exit(1);
+//   }
+// };
 
-const seedPoliceStations = async () => {
-  try {
-    await connectDB();
+// seedPoliceStation();
+// import mongoose from "mongoose";
+// import User from "../models/user.model.js";
 
-    await policeStation.deleteMany(); // optional
-    await policeStation.insertMany(PoliceStations);
+// const MONGO_URI = "mongodb://127.0.0.1:27017/your_db_name";
 
-    console.log("Police stations seeded successfully");
-    process.exit();
-  } catch (error) {
-    console.error("Seeding failed", error);
-    process.exit(1);
-  }
-};
+// const seedUser = async () => {
+//   try {
+//     await mongoose.connect(MONGO_URI);
 
-seedPoliceStations();
-//bad me arry bana ke each police from station ka location se 5km bala complex logic karuga
-//agar time bacha
+//     await User.create({
+//       _id: new mongoose.Types.ObjectId("65aa11111111111111111111"),
+//       name: "Alice",
+//       friends: [
+//         new mongoose.Types.ObjectId("65aa22222222222222222222"),
+//       ],
+//       location: {
+//         type: "Point",
+//         coordinates: [88.3639, 22.5726], // [lng, lat]
+//       },
+//       fcmTokens: [
+//         { token: "FCM_TOKEN_ALICE" },
+//       ],
+//     });
+
+//     console.log("✅ User seeded");
+//     process.exit(0);
+//   } catch (error) {
+//     console.error("❌ Seeder error:", error);
+//     process.exit(1);
+//   }
+// };
+
+// seedUser();
+

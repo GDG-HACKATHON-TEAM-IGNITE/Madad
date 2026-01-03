@@ -1,0 +1,13 @@
+// {
+//   "type": "service_account",
+//   "project_id": "mitra-1-43879",
+//   "private_key_id": "1fd2e2cc5828a061c6d0d5a6ea9b223e11b079ab",
+//   "private_key": "-----BEGIN PRIVATE KEY-----\nMIIEvAIBADANBgkqhkiG9w0BAQEFAASCBKYwggSiAgEAAoIBAQCsLfCZDhwRFKg5\nkzwoUpVRaA0Tjcd/MlLB3AQfNyuThZ1EqzavEbg8Dbrhl6YxFjB8X9BgHyVIsl0n\ndLdafjNe6Z6wfI4v5a85mhni7OtBpBUs22CUAMJVlXW+zJpAXzJIdiFD5ukDx2Qw\nshE+J17JLduKEge9Nc91/0WXKeEnvTsbpU+3zlnFEXjldbsu2mqXrgxlX7cc+m/K\nAuFRurr9WvATPCc68VnPNgnfhzvkMXwb5NYzomwLEqS4MmQW1+H0OaI4eO1JiPwu\niHOauKHcJ4i2Id3oOpM9ogxRgPuTCSRN1xsClKYqWCwnCK55umNiN/Utu6hwfaT2\n40117Nz3AgMBAAECggEAEOwylaoV2k+FJnEd4tN74PSEAhp9850u4uZGTD0gN5xU\nmnJ+tux1oG1nCa1dt70rE2ZYm1uKtUW8//F2sSdU0qAA9iHf2PEcH+JRNGtw+ewj\nHdwLKeP8z1JklrxF77K+xSSn9oqkKoUD7pqDaFaQeEYQdryr7XRaL716ic9wO92Y\nCkevOz/70JS4gNnnqJkHacW8LGkwqodzfKQAw8oJqjzCzsCcmDdPb7khQA8Zm6aP\ncecxGt5xS9aQG5NPOdm6FKEGf/8nvYo3q04fQgxcnTDawx8JGV7J7tw+YUopx1li\n1ydYWfV7/cOoCbP5W3SFsbmbonDGf+ZPegPu0VkBOQKBgQDyTxE278e13bKPtYjg\n+I3qjmUCqOo+eQ4JQ5yBjAb4GgxDpH+aRivJNc2uGe7bhT70boGjf7qHufZGPVTg\nyzkoTfhepVby+ZLfr6Eo6En6LQIdnlyzLPR75rv/iet1Uhx3H25iPnoYa2IELqmt\njP5SUINz4MSl/O5dfsPfZmFF/wKBgQC16HgzSvry+JIBe8mORyuiwph1rYJA8Wcb\npgUvYHu3fpOJD29Llr8NggMQsVsW2e5XWL2ByDJtoq6bh0jSAlCgv3XFn2U36DVm\nBz53eiqirak3urHk/EJImoPlz0zxK9Fwzy0bMtwND/oSHu4HvVZaYtp1MV3YKEbv\nWlKcPlSZCQKBgBFxm72muWvgT/CEkxwPCLhwE9mDK4nf0SDdmzDAUegeh+9+sij7\nED/l/a6g808eYo/aPL72fQk0XARmeevM9YpvQogdwwqu6OHtlN6LCnhWMSbMtcO4\nYslgrPwSg77ocGArBRlRghyr7lx6t4Bk/BIU9cGr1rxUXxyf+Z3lku8lAoGARanT\nboFGfYooEB1h4PTshxZS4K4j9c79F5+K2MvwVSNKSPD6RE5kuD2UAu6I3cVz+0tm\nt679cPMePz2d658rVYQ9DAOw9aod2QbpK0RD060B4u/CdNkOYVObM4UiCDIpsTQG\nKCZgEziNIidqLNibm13EH6FaOQ+jqsJCZMeSClECgYBWQOdIP+N+lp06Q3D/g7Re\nn05w0AbwMVo1vUgEKUmFqyKivk0nwa5nzIlvgeTmt1OIbh/m3/Fru9WwkDgcFOKW\nPye8421G+yek0ZlfFY9wxM0os9BtJ+hicx3ZbSUiPnzdZpsUy3ONn9ecacI7VbAD\nKbfOyCUrdh65sPH2PB2YYA==\n-----END PRIVATE KEY-----\n",
+//   "client_email": "firebase-adminsdk-fbsvc@mitra-1-43879.iam.gserviceaccount.com",
+//   "client_id": "100407569029291408479",
+//   "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+//   "token_uri": "https://oauth2.googleapis.com/token",
+//   "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
+//   "client_x509_cert_url": "https://www.googleapis.com/robot/v1/metadata/x509/firebase-adminsdk-fbsvc%40mitra-1-43879.iam.gserviceaccount.com",
+//   "universe_domain": "googleapis.com"
+// } //deleted as my api key was exposed no need
