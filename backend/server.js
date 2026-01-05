@@ -1,35 +1,82 @@
 import express from "express";
 import dotenv from "dotenv";
 dotenv.config();
+
 import cors from "cors";
-import { decodeToken } from "./middleware/auth.js"; //require service.json , comment out to test chatapi
-import user from "./controllers/user.js";
-import connectDB from "./config/db.js";
-import { Server } from "socket.io";
-import userRoutes from './routes/user.routes.js'
+import helmet from "helmet";
+import rateLimit from "express-rate-limit";
+import xss from "xss-clean";
+import hpp from "hpp";
+
+
 import http from "http";
-const port = process.env.PORT || 5000;
+import { Server } from "socket.io";
+
+import connectDB from "./config/db.js";
 import initSockets from "./sockets/index.js";
+import userRoutes from "./routes/user.routes.js";
+import policeRoutes from './routes/police.routes.js'
+import fetchmessage, { limiter as chatLimiter } from "./controllers/chat.js";
 
-import fetchmessage, { limiter } from "./controllers/chat.js";
-//
 const app = express();
-app.use(express.json());
-app.use(cors());
+const port = process.env.PORT || 5000;
 
-app.use("/api",userRoutes); //require service.json comment out to test chatapi
-//routes
+/* 
+   GLOBAL SAFETY MIDDLEWARES
+*/
 
-//chat bot implementation
-app.post("/api/chat", limiter, fetchmessage);
-app
+// secure HTTP headers
+app.use(helmet());
+
+// prevent XSS
+app.use(xss());
+
+// prevent HTTP parameter pollution
+app.use(hpp());
+
+// body parser
+app.use(express.json({ limit: "10kb" }));
+
+// cors
+app.use(
+  cors({
+    origin: process.env.FRONTEND_URL || "*",
+    credentials: true,
+  })
+);
+
+/*
+   GLOBAL RATE LIMITER
+*/
+const globalLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 min
+  max: 1000,
+  message: "Too many requests, please try again later",
+});
+
+app.use(globalLimiter);
+
+/* =======================
+   ROUTES
+======================= */
+
+app.use("/api/user", userRoutes);
+app.use("/api/police", policeRoutes)
+
+// chatbot route (separate limiter)
+app.post("/api/chat", chatLimiter, fetchmessage);
+
+/* =======================
+   SOCKET SERVER
+======================= */
 
 const server = http.createServer(app);
+
 const io = new Server(server, {
-  pingInterval: 5000, // 5 sec
-  pingTimeout: 3000, // 3 sec
+  pingInterval: 5000,
+  pingTimeout: 3000,
   cors: {
-    origin: process.env.port,
+    origin: process.env.CLIENT_URL || "*",
     methods: ["GET", "POST"],
     credentials: true,
   },
@@ -37,12 +84,15 @@ const io = new Server(server, {
 
 initSockets(io);
 
-//mongoDB connection
+/*
+   DATABASE + SERVER START
+*/
+
 try {
   await connectDB();
   server.listen(port, () => {
-    console.log(`server is running on port ${port}`);
+    console.log(`Server running on port ${port}`);
   });
 } catch (error) {
-  console.log(error);
+  console.error("Server failed to start:", error);
 }

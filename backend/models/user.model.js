@@ -15,24 +15,31 @@ const UserSchema = new mongoose.Schema({
     required: true,
   },
 
-  // 🔥 ADD THIS
-  location: {
-    type: {
-      type: String,
-      enum: ["Point"],
-      default: "Point",
-      required: true,
-    },
-    coordinates: {
-      type: [Number], // [lng, lat]
-      required: true,
-    },
+  //  missing but used in controller
+  photo: String,
+
+  //  missing but used in controller
+  provider: {
+    type: String,
   },
 
-  friends: [{
-    type: mongoose.Schema.Types.ObjectId,
-    ref: "User",
-  }],
+  //  missing but used in controller
+  phone: String,
+
+  //  missing but used in controller
+  fcmTokens: [
+    {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "FcmToken",
+    },
+  ],
+
+  friends: [
+    {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+    },
+  ],
 
   createdAt: {
     type: Date,
@@ -40,7 +47,6 @@ const UserSchema = new mongoose.Schema({
   },
 });
 
-// 🔥 ADD INDEX
-UserSchema.index({ location: "2dsphere" });
+// 2dsphere index
 
 export default mongoose.model("User", UserSchema);

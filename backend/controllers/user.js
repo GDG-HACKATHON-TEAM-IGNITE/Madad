@@ -5,9 +5,9 @@ import { Report } from "../models/report.model.js";
 export const userCreate = async (req, res) => {
   try {
     const { uid, email, name, picture } = req.user;
-    const { fcmToken, phone } = req.body; //solved wrong data
+    const { fcmToken, phone } = req.body;
 
-    // Find or create user
+    // Find user by uid
     let user = await User.findOne({ uid });
 
     if (!user) {
@@ -15,13 +15,13 @@ export const userCreate = async (req, res) => {
         uid,
         name,
         email,
-        photo: picture,
-        provider: "google",
-        phone,
+        photo: picture, //  bug: field must exist in schema (fixed below)
+        provider: "google", //  bug: field must exist in schema
+        phone, //  bug: field must exist in schema
       });
     }
 
-    //  Register / update FCM token
+    // Register / update FCM token
     if (fcmToken) {
       let tokenDoc = await FcmToken.findOne({ token: fcmToken });
 
@@ -32,6 +32,7 @@ export const userCreate = async (req, res) => {
           owner: user._id,
         });
 
+        //  bug: fcmTokens array must exist in schema
         user.fcmTokens.push(tokenDoc._id);
         await user.save();
       } else {
@@ -43,43 +44,261 @@ export const userCreate = async (req, res) => {
       }
     }
 
-    res.json({ success: true, user });
+    return res.json({
+      success: true,
+      userdetails: {
+        name: user.name,
+        photo: user.photo,
+        phone: user.phone,
+        uid: user._id,
+      },
+    });
   } catch (err) {
     console.error(err);
-    res.status(500).json({ success: false });
+    return res.status(500).json({ success: false });
   }
 };
+
+import mongoose from "mongoose";
 
 export const addFriends = async (req, res) => {
   try {
     const { uid } = req.user;
     const { friends } = req.body;
 
+    // 1️⃣ Validate input
     if (!Array.isArray(friends) || friends.length === 0) {
       return res.status(400).json({
-        message: "friends must be a non-empty array of uids",
+        message: "friends must be a non-empty array of Mongo IDs",
       });
     }
 
+    // 2️⃣ Filter valid ObjectIds
+    const validObjectIds = friends.filter((id) =>
+      mongoose.Types.ObjectId.isValid(id)
+    );
+
+    if (validObjectIds.length === 0) {
+      return res.status(400).json({
+        message: "No valid MongoDB ObjectIds provided",
+      });
+    }
+
+    // 3️⃣ Find current user
+    const user = await User.findOne({ uid });
+    if (!user) {
+      return res.status(400).json({ message: "Invalid user" });
+    }
+
+    // 4️⃣ Find existing users by _id
+    const existingUsers = await User.find({
+      _id: { $in: validObjectIds },
+    }).select("_id");
+
+    if (existingUsers.length === 0) {
+      return res.status(404).json({
+        message: "No valid users found for provided IDs",
+      });
+    }
+
+    const existingIds = new Set(existingUsers.map((u) => u._id.toString()));
+
+    // 5️⃣ Add only existing IDs
+    await User.findOneAndUpdate(
+      { uid },
+      {
+        $addToSet: {
+          friends: { $each: [...existingIds] },
+        },
+      }
+    );
+
+    // 6️⃣ Detect invalid / non-existing IDs
+    const invalidIds = friends.filter(
+      (id) => !mongoose.Types.ObjectId.isValid(id) || !existingIds.has(id)
+    );
+
+    return res.status(200).json({
+      message: "Friends added successfully",
+      addedFriends: [...existingIds],
+      notAddedFriends: invalidIds,
+    });
+  } catch (error) {
+    return res.status(500).json({ message: error.message });
+  }
+};
+
+// {
+//   "friends": [
+//     "65fa1c0b1234567890abcd12",
+//     "invalid-id",
+//     "65fa1c0b0000000000000000"
+//   ]
+// }
+
+// {
+//   "message": "Friends added successfully",
+//   "addedFriends": ["65fa1c0b1234567890abcd12"],
+//   "notAddedFriends": ["invalid-id", "65fa1c0b0000000000000000"]
+// }
+
+export const report = async (req, res) => {
+  try {
+    if (!req.user || !req.user.uid) {
+      return res.status(401).json({ msg: "Unauthorized" });
+    }
+
+    const { whatHappened, firstName, lastName, riskVal, lng, lat, phone } =
+      req.body;
+
+    //  bug: falsy check breaks for 0, use explicit check
+    if (!whatHappened || !riskVal || lng === undefined || lat === undefined) {
+      return res.status(400).json({ msg: "Missing required fields" });
+    }
+
+    //  bug: function was never called
+    const capitalizeRisk = (val) =>
+      val[0].toUpperCase() + val.slice(1).toLowerCase();
+
+    const normalizedRisk = capitalizeRisk(riskVal);
+
+    let Risk;
+    //  bug: comparison was against function, not value
+    if (normalizedRisk === "Minor concern") {
+      Risk = 1;
+    } else if (normalizedRisk === "Moderate risk") {
+      Risk = 2;
+    } else if (normalizedRisk === "Immediate danger") {
+      Risk = 3;
+    } else {
+      return res.status(400).json({ msg: "Invalid risk value" });
+    }
+
+    await Report.create({
+      whatHappened,
+      firstName,
+      lastName,
+      phone,
+      risk: Risk,
+
+      // bug: GeoJSON structure + spelling
+      location: {
+        type: "Point",
+        coordinates: [lng, lat],
+      },
+    });
+
+    return res.status(201).json({
+      success: true,
+      message: "Report created",
+    });
+  } catch (error) {
+    return res.status(500).json({ msg: error.message });
+  }
+};
+export const scoreCalculator = async (req, res) => {
+  try {
+    //  missing auth guard response
+    if (!req.user || !req.user.uid) {
+      return res.status(401).json({ msg: "Unauthorized" });
+    }
+
+    //  bug: res.quary → req.query
+    const { lng, lat } = req.query;
+
+    //  bug: lng/lat are strings from query params
+    if (lng === undefined || lat === undefined) {
+      return res.status(400).json({ msg: "lng and lat are required" });
+    }
+
+    const longitude = Number(lng);
+    const latitude = Number(lat);
+
+    if (Number.isNaN(longitude) || Number.isNaN(latitude)) {
+      return res.status(400).json({ msg: "Invalid coordinates" });
+    }
+
+    const data = await Report.find(
+      {
+        location: {
+          $near: {
+            $geometry: {
+              type: "Point",
+              coordinates: [longitude, latitude],
+            },
+            $maxDistance: 5000, // meters
+          },
+        },
+      },
+      { whatHappened: 1, risk: 1 } // projection
+    );
+
+    const totalCases = data.length;
+
+    //  bug: reduce without initial value can crash on empty array
+    const totalRating = data.reduce((sum, curr) => sum + curr.risk, 0);
+
+    //  bug: const reassignment + unsafe math
+    let safeScoreIntensity = totalCases * totalRating;
+
+    if (safeScoreIntensity < 1) {
+      safeScoreIntensity = 1;
+    }
+
+    //  bug: safescore was undeclared
+    const safescore = (1 / safeScoreIntensity) * 100;
+
+    return res.json({
+      safescore,
+      totalCases,
+      data,
+    });
+  } catch (error) {
+    return res.status(500).json({ msg: error.message });
+  }
+};
+
+
+
+
+
+
+export const addFriendsByPhone = async (req, res) => {
+  try {
+    const { uid } = req.user;
+    const { phones } = req.body;
+
+    // Validate input
+    if (!Array.isArray(phones) || phones.length === 0) {
+      return res.status(400).json({
+        message: "phones must be a non-empty array",
+      });
+    }
+
+    // Find logged-in user
     const user = await User.findOne({ uid });
     if (!user) {
       return res.status(400).json({
-        msg: "code error entered wrong uid in params",
+        message: "Invalid user",
       });
     }
 
-    const friendArray = await User.find({
-      uid: { $in: friends },
-    });
+    // Find users matching phone numbers (excluding self)
+    const matchedUsers = await User.find({
+      phone: { $in: phones },
+      uid: { $ne: uid },
+    }).select("_id phone");
 
-    if (friendArray.length === 0) {
+    if (matchedUsers.length === 0) {
       return res.status(404).json({
-        message: "No valid friends found",
+        message: "No users found for provided phone numbers",
       });
     }
 
-    const friendIds = friendArray.map((f) => f._id);
+    // Extract Mongo IDs
+    const friendIds = matchedUsers.map((u) => u._id);
 
+    // Add friends (avoid duplicates automatically)
     await User.findOneAndUpdate(
       { uid },
       {
@@ -89,76 +308,73 @@ export const addFriends = async (req, res) => {
       }
     );
 
+    // Detect phones not registered
+    const existingPhones = new Set(matchedUsers.map((u) => u.phone));
+    const notRegisteredPhones = phones.filter(
+      (p) => !existingPhones.has(p)
+    );
+
     return res.status(200).json({
       message: "Friends added successfully",
-      notExistFriends: friends.filter(
-        (f) => !friendArray.map((u) => u.uid).includes(f)
-      ),
+      addedFriendsCount: friendIds.length,
+      notRegisteredPhones,
     });
   } catch (error) {
-    return res.status(500).json({ msg: error.message });
+    return res.status(500).json({
+      message: error.message,
+    });
   }
 };
-export const report = async (req, res) => {
-  if (req.user.uid) {
-    const { whatHappened, firstName, lastName, riskVal, lng, lat, phone } =
-      req.body;
-    if (whatHappened && lng && lat && riskVal) {
-      const CapitalizeRisk = (riskVal) => {
-        return riskVal[0].toUpperCase() + riskVal.slice(1).toLowerCase();
-      };
-      let Risk;
-      if (CapitalizeRisk === "Minor concern") {
-        Risk = 1;
-      } else if (CapitalizeRisk === "Moderate risk") {
-        Risk = 2;
-      } else if (CapitalizeRisk === "Immediate danger") {
-        Risk = 3;
-      }
+// export const editProfile = async (req, res) => {
+  try {
+    const { uid } = req.user;
 
-      await Report.create({
-        location: { coodinates: [lng, lat] },
-        risk: Risk,
-        firstName,
-        lastName,
-        whatHappened,
+    const { name, photo, phone, provider } = req.body;
+
+    // Build allowed update object
+    const updates = {};
+
+    if (name) updates.name = name;
+    if (photo) updates.photo = photo;
+    if (phone) updates.phone = phone;
+    if (provider) updates.provider = provider;
+
+    if (Object.keys(updates).length === 0) {
+      return res.status(400).json({
+        message: "No valid fields provided for update",
       });
     }
-  }
-};
 
-export const scoreCalculator = async (req, res) => {
-  if (req.user.uid) {
-    const { lng, lat } = res.quary;
-    if (lng && lat) {
-      try {
-        const data = await Report.find(
-          {
-            location: {
-              $near: {
-                $geometry: {
-                  type: "Point",
-                  coordinates: [lng, lat],
-                },
-                $maxDistance: 5000,
-              },
-            },
-          },
-          { whatHappened: 1, risk: 1 }
-        );
-
-        const totalCases = data.length;
-        const totalRating = data.reduce((pre, curr) => pre + curr.risk, 0);
-
-        const safeScoreintensity = totalCases * totalRating;
-        if (safeScoreintensity < 1) {
-          safeScoreintensity = 1;
-        }
-        safescore = (1 / safeScoreintensity) * 100;
-        return res.json({ safescore, data });
-      } catch (error) {
-        return res.json({ msg: error });
+    // Update user safely
+    const updatedUser = await User.findOneAndUpdate(
+      { uid },
+      { $set: updates },
+      {
+        new: true,
+        runValidators: true,
       }
+    ).select("uid name email phone photo provider");
+
+    if (!updatedUser) {
+      return res.status(404).json({
+        message: "User not found",
+      });
     }
+
+    return res.status(200).json({
+      message: "Profile updated successfully",
+      user: updatedUser,
+    });
+  } catch (error) {
+    // Handle duplicate phone/email errors
+    if (error.code === 11000) {
+      return res.status(409).json({
+        message: "Phone number already in use",
+      });
+    }
+
+    return res.status(500).json({
+      message: error.message,
+    });
   }
-};
+

@@ -4,12 +4,14 @@ import { socket } from "../../sockets/sockets.jsx";
 export const useSOSLocation = () => {
   const watchIdRef = useRef(null);
 //userid=mongoose id fix now its uid
-  const startSOS = () => {
-    socket.emit("register-user", { userId });
-    if (!navigator.geolocation) {
-      alert("Geolocation not supported");
-      return;
-    }
+const startSOS = async () => {
+  const auth = getAuth();
+  const user = auth.currentUser;
+  if (!user) return;
+
+  const token = await user.getIdToken();
+
+  socket.emit("register-user", { token });
 
     watchIdRef.current = navigator.geolocation.watchPosition(
       (position) => {

@@ -1,4 +1,4 @@
-import {sendMail} from 'nodemailer'
+import nodemailer from 'nodemailer'
 import dotenv from "dotenv";
 dotenv.config();
 const transporter = nodemailer.createTransport({
@@ -8,7 +8,7 @@ const transporter = nodemailer.createTransport({
     pass: process.env.EMAILPASS,
   },
 });
-const mail =async ({to,html}) => {
+export const mail =async ({to,html}) => {
   const info = await transporter.sendMail({
     from:process.env.EMAILID,
     to,

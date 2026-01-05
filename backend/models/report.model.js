@@ -1,7 +1,9 @@
 import mongoose from "mongoose";
+
 const reportSchema = new mongoose.Schema({
+  //  bug: `string` → `String`
   whatHappened: {
-    type: string,
+    type: String,
     enum: [
       "Harassment",
       "Theft",
@@ -12,10 +14,13 @@ const reportSchema = new mongoose.Schema({
     ],
     required: true,
   },
-  firstName: { type: string, required: false },
-  lastName: { type: string, required: false },
-  phone: { type: Number, required: false },
-  email: { type: string, required: false },
+
+  //  bug: `string` → `String`
+  firstName: { type: String },
+  lastName: { type: String },
+  phone: { type: Number },
+  email: { type: String },
+
   risk: {
     type: Number,
     required: true,
@@ -23,19 +28,32 @@ const reportSchema = new mongoose.Schema({
     max: 3,
   },
 
+  //  unused in controller but kept
   describe: {
-    type: string,
-    required: false,
+    type: String,
   },
 
+  //  bug: GeoJSON structure totally wrong
   location: {
-    type: string,
-    required: true,
-    enum: ["Point"],
-    default: "Point",
-    coodinates: { type: [Number], required: true },
+    type: {
+      type: String,
+      enum: ["Point"],
+      required: true,
+      default: "Point",
+    },
+    coordinates: {
+      type: [Number], // [lng, lat]
+      required: true,
+    },
   },
-  createdAt: { type: Date, default: Date.now },
+
+  createdAt: {
+    type: Date,
+    default: Date.now,
+  },
 });
+
+//  bug: index must match GeoJSON object
 reportSchema.index({ location: "2dsphere" });
+
 export const Report = mongoose.model("Report", reportSchema);
