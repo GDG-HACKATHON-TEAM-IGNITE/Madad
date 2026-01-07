@@ -17,6 +17,8 @@ import initSockets from "./sockets/index.js";
 import userRoutes from "./routes/user.routes.js";
 import policeRoutes from './routes/police.routes.js'
 import fetchmessage, { limiter as chatLimiter } from "./controllers/chat.js";
+import { editProfile, getProfile } from "./controllers/user.js";
+import { decodeToken } from "./middleware/auth.js";
 
 const app = express();
 const port = process.env.PORT || 5000;
@@ -62,6 +64,9 @@ app.use(globalLimiter);
 
 app.use("/api/user", userRoutes);
 app.use("/api/police", policeRoutes)
+// Route required by frontend Settings.jsx
+app.patch("/api/profile", decodeToken, editProfile);
+app.get("/api/profile", decodeToken, getProfile);
 
 // chatbot route (separate limiter)
 app.post("/api/chat", chatLimiter, fetchmessage);
@@ -76,7 +81,7 @@ const io = new Server(server, {
   pingInterval: 5000,
   pingTimeout: 3000,
   cors: {
-    origin: process.env.CLIENT_URL || "*",
+    origin: process.env.FRONTEND_URL || "*",
     methods: ["GET", "POST"],
     credentials: true,
   },

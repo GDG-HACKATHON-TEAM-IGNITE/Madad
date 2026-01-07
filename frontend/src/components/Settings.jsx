@@ -39,10 +39,33 @@ const Settings = () => {
   /* ================= AUTH + PROFILE ================= */
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (user) => {
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
       if (!user) {
         navigate("/");
         return;
+      }
+
+      // 1. Set basic info from Firebase (fallback)
+      let name = user.displayName || "";
+      let email = user.email || "";
+
+      // 2. Fetch latest from Backend DB
+      try {
+        const token = await user.getIdToken();
+        const res = await fetch("http://localhost:5000/api/profile", {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
+
+        if (res.ok) {
+          const data = await res.json();
+          if (data.name) name = data.name;
+          if (data.email) email = data.email;
+          console.log("Fetched profile from DB:", data);
+        }
+      } catch (err) {
+        console.error("Failed to fetch profile from backend:", err);
       }
 
       setProfile({
@@ -146,11 +169,10 @@ const Settings = () => {
           value={profile.fullName}
           disabled={!editing}
           onChange={(e) => setProfile({ ...profile, fullName: e.target.value })}
-          className={`w-full mb-4 px-4 py-3 rounded-xl ${
-            editing
+          className={`w-full mb-4 px-4 py-3 rounded-xl ${editing
               ? "border focus:ring-2 focus:ring-[#a7c7e7] outline-none"
               : "bg-[#f2f6fb]"
-          }`}
+            }`}
         />
 
         {/* EMAIL */}
@@ -159,11 +181,10 @@ const Settings = () => {
           value={profile.email}
           disabled={!editing}
           onChange={(e) => setProfile({ ...profile, email: e.target.value })}
-          className={`w-full mb-4 px-4 py-3 rounded-xl ${
-            editing
+          className={`w-full mb-4 px-4 py-3 rounded-xl ${editing
               ? "border focus:ring-2 focus:ring-[#a7c7e7] outline-none"
               : "bg-[#f2f6fb]"
-          }`}
+            }`}
         />
 
         {error && <p className="text-red-500 text-sm mb-4">{error}</p>}

@@ -16,12 +16,12 @@ const deviceSchema = new mongoose.Schema({
 
   verificationCode: {
     type: Number,
-    required: true,
+    required: false,
   },
 
   verificationCodeExpiry: {
     type: Date,
-    required: true,
+    required: false,
   },
 });
 

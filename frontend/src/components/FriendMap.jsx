@@ -1,17 +1,23 @@
-import React, { useEffect, useState } from "react";
-import { MapContainer, TileLayer, Marker, Popup } from "react-leaflet";
-import "leaflet/dist/leaflet.css";
+import { useEffect, useState } from "react";
+import {
+    MapContainer,
+    TileLayer,
+    Marker,
+    Popup,
+    useMap
+} from "react-leaflet";
 import L from "leaflet";
+import "leaflet/dist/leaflet.css";
 import { socket } from "../sockets/sockets";
 import { getAuth } from "firebase/auth";
 
-// Fix for default Leaflet marker icon not showing
+// Leaflet icon fix
 import icon from "leaflet/dist/images/marker-icon.png";
-import iconShadow from "leaflet/dist/images/marker-shadow.png";
+import shadow from "leaflet/dist/images/marker-shadow.png";
 
-let DefaultIcon = L.icon({
+const DefaultIcon = L.icon({
     iconUrl: icon,
-    shadowUrl: iconShadow,
+    shadowUrl: shadow,
     iconSize: [25, 41],
     iconAnchor: [12, 41],
 });
@@ -19,74 +25,94 @@ L.Marker.prototype.options.icon = DefaultIcon;
 
 const defaultCenter = [20.2961, 85.8245];
 
-export default function FriendMap() {
-    const [friendsLocation, setFriendsLocation] = useState({});
-    const [currentUser, setCurrentUser] = useState(null);
+// Auto-center on self
+const Recenter = ({ lat, lng }) => {
+    const map = useMap();
+    useEffect(() => {
+        map.setView([lat, lng], 15);
+    }, [lat, lng]);
+    return null;
+};
 
+export default function FriendMap() {
+    const [myLocation, setMyLocation] = useState(null);
+    const [friends, setFriends] = useState({});
+
+    // 🔐 REGISTER (same as HelpMate)
     useEffect(() => {
         const register = async () => {
             const auth = getAuth();
             const user = auth.currentUser;
             if (!user) return;
 
-            setCurrentUser(user);
-
             const token = await user.getIdToken();
-            // Backend expects { token: "..." }
             socket.emit("register-user", { token });
         };
 
         register();
+    }, []);
 
-        const handleFriendLocation = (data) => {
-            // Backend emits: { userId, latitude, longitude }
-            console.log("Friend location received:", data);
-            const { userId, latitude, longitude } = data;
+    // 📍 OWN LOCATION (view only)
+    useEffect(() => {
+        if (!navigator.geolocation) return;
 
-            setFriendsLocation((prev) => ({
+        navigator.geolocation.getCurrentPosition(
+            ({ coords }) => {
+                setMyLocation({
+                    latitude: coords.latitude,
+                    longitude: coords.longitude,
+                });
+            },
+            (err) => console.error("Geo error:", err),
+            { enableHighAccuracy: true }
+        );
+    }, []);
+
+    // 👥 FRIEND LOCATIONS (ONLY event used in HelpMate)
+    useEffect(() => {
+        const handleFriendLocation = ({ userId, latitude, longitude }) => {
+            setFriends((prev) => ({
                 ...prev,
-                [userId]: { lat: latitude, lng: longitude },
+                [userId]: { latitude, longitude },
             }));
         };
 
         socket.on("friend-live-location", handleFriendLocation);
 
-        // Send my location
-        let watchId;
-        if ("geolocation" in navigator) {
-            watchId = navigator.geolocation.watchPosition(
-                (position) => {
-                    const { latitude, longitude } = position.coords;
-                    socket.emit("send-location", { latitude, longitude });
-                },
-                (error) => console.error("Error getting location:", error),
-                { enableHighAccuracy: true, timeout: 5000, maximumAge: 0 }
-            );
-        }
-
         return () => {
             socket.off("friend-live-location", handleFriendLocation);
-            if (watchId) navigator.geolocation.clearWatch(watchId);
         };
     }, []);
 
     return (
-        <div className="w-full h-[500px] rounded-xl overflow-hidden shadow-lg border border-gray-200">
+        <div className="w-full h-screen flex justify-center">
             <MapContainer
                 center={defaultCenter}
-                zoom={13}
-                style={{ height: "100%", width: "100%" }}
+                zoom={6}
+                className="w-[80%] h-[70vh] mt-10"
             >
                 <TileLayer
-                    url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-                    attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+                    attribution="© OpenStreetMap"
+                    url="https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png"
                 />
 
-                {Object.entries(friendsLocation).map(([uid, loc]) => (
-                    <Marker key={uid} position={[loc.lat, loc.lng]}>
-                        <Popup>
-                            User: {uid}
-                        </Popup>
+                {/* 🔴 You */}
+                {myLocation && (
+                    <>
+                        <Marker position={[myLocation.latitude, myLocation.longitude]}>
+                            <Popup>You are here</Popup>
+                        </Marker>
+                        <Recenter
+                            lat={myLocation.latitude}
+                            lng={myLocation.longitude}
+                        />
+                    </>
+                )}
+
+                {/* 👥 Friends */}
+                {Object.entries(friends).map(([id, loc]) => (
+                    <Marker key={id} position={[loc.latitude, loc.longitude]}>
+                        <Popup>Friend</Popup>
                     </Marker>
                 ))}
             </MapContainer>

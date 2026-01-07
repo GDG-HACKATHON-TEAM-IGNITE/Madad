@@ -35,13 +35,16 @@ export const registerPoliceDevice = async (req, res) => {
     const verificationCode = Math.floor(1000 + Math.random() * 9000);
     const verificationCodeExpiry = new Date(Date.now() + 4 * 60 * 1000);
 
-    //  bug: field name mismatch (policeid vs policeId)
-    const device = await Device.create({
-      policeStationId: police._id, // store ObjectId, not string policeId
-      deviceId: DeviceId,
-      verificationCode,
-      verificationCodeExpiry,
-    });
+    // Use findOneAndUpdate to prevent duplicate entries for the same device
+    const device = await Device.findOneAndUpdate(
+      { deviceId: String(DeviceId) },
+      {
+        policeStationId: police._id,
+        verificationCode,
+        verificationCodeExpiry,
+      },
+      { upsert: true, new: true }
+    );
 
     //without $ not valid in Node.js
     await mail({
@@ -74,7 +77,7 @@ export const verifyPoliceDevice = async (req, res) => {
     }
 
     //  bug: deviceId field name mismatch handled correctly here
-    const device = await Device.findOne({ deviceId: DeviceId });
+    const device = await Device.findOne({ deviceId: String(DeviceId) });
     if (!device) {
       return res.status(400).json({ msg: "try again" });
     }
@@ -126,6 +129,7 @@ export const verifyPoliceDevice = async (req, res) => {
       success: true,
       message: "Police device registered",
       policeStationId: police.policeStationId,
+      coordinates: police.location.coordinates,
     });
   } catch (err) {
     console.error(err);
@@ -133,5 +137,27 @@ export const verifyPoliceDevice = async (req, res) => {
       success: false,
       message: "Server error",
     });
+  }
+};
+
+export const checkDeviceVerification = async (req, res) => {
+  try {
+    const { deviceId } = req.body;
+    if (!deviceId) return res.status(400).json({ success: false, message: "Device ID required" });
+
+    const device = await Device.findOne({ deviceId: String(deviceId) }).populate("policeStationId");
+
+    if (device && device.isVerified) {
+      return res.json({
+        success: true,
+        isVerified: true,
+        policeStationId: device.policeStationId.policeStationId,
+        coordinates: device.policeStationId.location.coordinates,
+      });
+    }
+
+    return res.json({ success: false, isVerified: false });
+  } catch (err) {
+    return res.status(500).json({ success: false, message: err.message });
   }
 };

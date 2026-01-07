@@ -10,14 +10,16 @@ export const userCreate = async (req, res) => {
     // Find user by uid
     let user = await User.findOne({ uid });
 
+    // Ensure we do not update existing user data (name, email, photo) from req.user
+    // This preserves any edits the user made to their profile.
     if (!user) {
       user = await User.create({
         uid,
         name,
         email,
-        photo: picture, //  bug: field must exist in schema (fixed below)
-        provider: "google", //  bug: field must exist in schema
-        phone, //  bug: field must exist in schema
+        photo: picture,
+        provider: "google",
+        phone,
       });
     }
 
@@ -64,47 +66,50 @@ import e from "express";
 
 export const addFriends = async (req, res) => {
   try {
+    console.log("addFriends route hit, body:", req.body);
     const { uid } = req.user;
     const { friends } = req.body;
 
     // 1️⃣ Validate input
     if (!Array.isArray(friends) || friends.length === 0) {
       return res.status(400).json({
-        message: "friends must be a non-empty array of firebase UIDs",
+        message: "friends must be a non-empty array of User IDs",
       });
     }
 
-    // // 2️⃣ Filter valid ObjectIds
-    // const validObjectIds = friends.filter((id) =>
-    //   mongoose.Types.ObjectId.isValid(id)
-    // );
+    // 2️⃣ Filter valid ObjectIds
+    const validObjectIds = friends.filter((id) =>
+      mongoose.Types.ObjectId.isValid(id)
+    );
 
-    // if (validObjectIds.length === 0) {
-    //   return res.status(400).json({
-    //     message: "No valid MongoDB ObjectIds provided",
-    //   });
-    // }
+    if (validObjectIds.length === 0) {
+      return res.status(400).json({
+        message: "No valid MongoDB ObjectIds provided",
+      });
+    }
 
-    // 3️⃣ Find current user
+    // 3️⃣ Find current user (using Firebase UID from token)
     const currentUser = await User.findOne({ uid });
     if (!currentUser) {
       return res.status(400).json({ message: "Invalid user" });
     }
 
-    // 4️⃣ Find existing users by uid
+    // 4️⃣ Find existing users by _id (Mongoose ID)
     const existingUsers = await User.find({
-      uid: { $in: friends },
+      _id: { $in: validObjectIds },
     }).select("_id uid");
 
     if (existingUsers.length === 0) {
       return res.status(404).json({
-        message: "No valid users found for provided UIDs",
+        message: "No valid users found for provided IDs",
       });
     }
-    const existingIds = existingUsers.map((u) => u._id.toString());
-    const existingUids = new Set(existingUsers.map((u) => u.uid));
 
-    // 5️⃣ Add only existing IDs
+    // IDs to add
+    const existingIds = existingUsers.map((u) => u._id);
+
+    // 5️⃣ Add these IDs to the current user's friends list
+    // safe because the schema defines friends array of ObjectIds
     await User.updateOne(
       { uid },
       {
@@ -119,10 +124,11 @@ export const addFriends = async (req, res) => {
 
     return res.status(200).json({
       message: "Friends added successfully",
-      addedFriends: [...existingIds],
-      notAddedFriends: invalidIds,
+      addedFriends: existingIds,
+      notAddedFriends: notAddedFriends,
     });
   } catch (error) {
+    console.error("addFriends error:", error);
     return res.status(500).json({ message: error.message });
   }
 };
@@ -337,6 +343,7 @@ export const addFriendsByPhone = async (req, res) => {
 };
 export const editProfile = async (req, res) => {
   try {
+    console.log("editProfile hit. Body:", req.body);
     const { uid } = req.user;
 
     const { name, email, photo, phone, provider } = req.body;
@@ -395,5 +402,26 @@ export const getReports = async (req, res) => {
     return res.status(200).json(reports);
   } catch (error) {
     return res.status(500).json({ msg: error.message });
+  }
+};
+
+export const getProfile = async (req, res) => {
+  try {
+    const { uid } = req.user;
+    const user = await User.findOne({ uid });
+
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    return res.status(200).json({
+      name: user.name,
+      email: user.email,
+      photo: user.photo,
+      uid: user.uid,
+      phone: user.phone,
+    });
+  } catch (error) {
+    return res.status(500).json({ message: error.message });
   }
 };

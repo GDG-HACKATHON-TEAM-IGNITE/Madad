@@ -1,4 +1,5 @@
 import { Route, Routes } from "react-router-dom"
+import PoliceLiveDashboard from "./pages/PoliceLiveDashboard"
 import Home from "./pages/Home"
 import Signin from "./pages/Signin"
 import Sos from "./pages/Sos"
@@ -23,6 +24,7 @@ const App = () => {
       <Route path="/chatbot" element={<Chatbot />} />
       <Route path="/safescore" element={<Safetyscore />} />
       <Route path="/friend-map" element={<FriendMapPage />} />
+      <Route path="/police-dashboard" element={<PoliceLiveDashboard />} />
     </Routes>
   )
 }
