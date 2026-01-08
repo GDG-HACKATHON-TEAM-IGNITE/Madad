@@ -45,8 +45,19 @@ const UserSchema = new mongoose.Schema({
     type: Date,
     default: Date.now,
   },
+  location: {
+    type: {
+      type: String,
+      enum: ["Point"],
+      default: "Point",
+    },
+    coordinates: {
+      type: [Number],
+      default: [0, 0], // Default to [0,0] if not provided
+    },
+  },
 });
 
-// 2dsphere index
+UserSchema.index({ location: "2dsphere" });
 
 export default mongoose.model("User", UserSchema);

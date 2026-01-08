@@ -72,12 +72,12 @@ export default function PoliceLiveDashboard() {
     =============================== */
     useEffect(() => {
         const handleUserLocation = (data) => {
-            // Expecting: { userId, latitude, longitude }
+            // Expecting: { userId, latitude, longitude, name }
             console.log("Police Map received:", data);
-            const { userId, latitude, longitude } = data;
+            const { userId, latitude, longitude, name } = data;
             setUsers((prev) => ({
                 ...prev,
-                [userId]: { latitude, longitude },
+                [userId]: { latitude, longitude, name },
             }));
         };
 
@@ -113,6 +113,7 @@ export default function PoliceLiveDashboard() {
                         position={[loc.latitude, loc.longitude]}
                     >
                         <Popup>
+                            <strong>Name:</strong> {loc.name || "Unknown"}<br />
                             <strong>User ID:</strong> {userId}
                         </Popup>
                     </Marker>

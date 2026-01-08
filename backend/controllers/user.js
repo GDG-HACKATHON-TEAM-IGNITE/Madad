@@ -66,7 +66,7 @@ import e from "express";
 
 export const addFriends = async (req, res) => {
   try {
-    console.log("addFriends route hit, body:", req.body);
+    console.log("addFriends route hit. Body:", JSON.stringify(req.body, null, 2));
     const { uid } = req.user;
     const { friends } = req.body;
 
@@ -370,7 +370,7 @@ export const editProfile = async (req, res) => {
         new: true,
         runValidators: true,
       }
-    ).select("uid name email phone photo provider");
+    );
 
     if (!updatedUser) {
       return res.status(404).json({
@@ -380,7 +380,14 @@ export const editProfile = async (req, res) => {
 
     return res.status(200).json({
       message: "Profile updated successfully",
-      user: updatedUser,
+      user: {
+        uid: updatedUser._id, // Return MongoDB ID as 'uid'
+        name: updatedUser.name,
+        email: updatedUser.email,
+        phone: updatedUser.phone,
+        photo: updatedUser.photo,
+        provider: updatedUser.provider,
+      },
     });
   } catch (error) {
     // Handle duplicate phone/email errors
@@ -418,7 +425,7 @@ export const getProfile = async (req, res) => {
       name: user.name,
       email: user.email,
       photo: user.photo,
-      uid: user.uid,
+      uid: user._id, // Return MongoDB ID as 'uid'
       phone: user.phone,
     });
   } catch (error) {

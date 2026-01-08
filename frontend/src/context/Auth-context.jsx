@@ -9,27 +9,26 @@ const AuthContext = createContext();
 export const AuthProvider = ({ children }) => {
   const [isAuth, setIsAuth] = useState(false);
   const [authToken, setAuthToken] = useState("");
+  const [fcmToken, setFcmToken] = useState(null);
 
   async function requestPermission() {
-    console.log(Notification.permission);
-
-    const permission = await Notification.requestPermission();
-    if (permission === "granted") {
-      // Generate Token
-      const token = await getToken(messaging, {
-        vapidKey:
-          "BFy93njkIu_dB4ocbim87cYBhvbyEHz_LLXtCRL0S5Oua92tTuhzka9S-6dy0Pdxbz2Kl6igP0tnoXkOT8X2zf0",
-      });
-      console.log("Token Gen", token);
-      // Send this token  to server ( db)
-    } else if (permission === "denied") {
-      alert("You denied for the notification");
-      return;
+    try {
+      const permission = await Notification.requestPermission();
+      if (permission === "granted") {
+        const token = await getToken(messaging, {
+          vapidKey: "BFy93njkIu_dB4ocbim87cYBhvbyEHz_LLXtCRL0S5Oua92tTuhzka9S-6dy0Pdxbz2Kl6igP0tnoXkOT8X2zf0",
+        });
+        console.log("Token Gen", token);
+        setFcmToken(token);
+      } else if (permission === "denied") {
+        console.warn("Notification permission denied");
+      }
+    } catch (error) {
+      console.error("Error requesting notification permission:", error);
     }
   }
 
   useEffect(() => {
-    // Req user for notification permission
     requestPermission();
   }, []);
 
@@ -40,15 +39,20 @@ export const AuthProvider = ({ children }) => {
         const token = await user.getIdToken();
         setAuthToken(token);
 
+        // Sync with backend
         try {
-          // Sync with backend to get Mongoose ID
+          const payload = {
+            phone: user.phoneNumber || undefined,
+            fcmToken: fcmToken || undefined
+          };
+
           const res = await fetch("http://localhost:5000/api/user/user", {
             method: "POST",
             headers: {
               "Content-Type": "application/json",
               Authorization: `Bearer ${token}`,
             },
-            body: JSON.stringify({}), // Body can be empty, middleware handles token
+            body: JSON.stringify(payload),
           });
 
           if (res.ok) {
@@ -70,7 +74,7 @@ export const AuthProvider = ({ children }) => {
     });
 
     return unsubscribe;
-  }, []);
+  }, [fcmToken]); // Re-run if FCM token key loads late (assuming user stays logged in)
 
   return (
     <AuthContext.Provider value={{ isAuth, authToken }}>

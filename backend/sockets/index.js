@@ -4,52 +4,64 @@
 import User from "../models/user.model.js";
 import PoliceStation from "../models/policeStation.model.js";
 import FcmToken from "../models/fcmToken.model.js";
-
-import sendFCMNotification from "../notification/notificationFcm.js";
 import admin from "../config/firebase-config.js";
-// wherever you initialize firebase-admin
-
+import sendFCMNotification from "../notification/notificationFcm.js";
 //runtime hashmaps......
-const onlineUsers = new Map(); // userId/uid -> socket
+const onlineUsers = new Map(); // userId -> socket
 const onlinePolice = new Map(); // policeStationId -> socket
 const userLastLocation = new Map(); // userId -> { lat, lng, time }
 
 const initSockets = (io) => {
   io.on("connection", (socket) => {
     console.log("Socket connected:", socket.id);
+    /*  REGISTER */
+    //socket.on("register-user", ({ token}) => {
 
-    /* 
-     REGISTER
- */
-
-    //socket.on("register-user", ({ userId }) => {
     socket.on("register-user", async (payload) => {
       try {
-        console.log("RAW payload:", payload);
-
-        if (!payload || typeof payload !== "object") return;
+        // 🔹 Handle string payload (Postman / manual emits)
+        if (typeof payload === "string") {
+          try {
+            payload = JSON.parse(payload);
+          } catch {
+            return;
+          }
+        }
+        // 🔹 Validate payload structure
+        if (!payload || typeof payload !== "object" || !payload.token) {
+          console.error("Invalid payload format");
+          socket.disconnect(true);
+          return;
+        }
 
         const { token } = payload;
-        if (!token) return;
 
-        // 🔐 VERIFY FIREBASE TOKEN
+        // 🔹 Verify Firebase token
         const decoded = await admin.auth().verifyIdToken(token);
-        const uid = decoded.uid; //
+        const uid = decoded.uid;
 
-        // 🔁 Handle duplicate connections
-        const existingSocket = onlineUsers.get(uid);
+        // 🔹 Find user using Firebase UID
+        const user = await User.findOne({ uid }).select("_id");
+        if (!user) {
+          socket.disconnect(true);
+          return;
+        }
+
+        const mongoUserId = user._id.toString();
+
+        // 🔹 Handle duplicate login
+        const existingSocket = onlineUsers.get(mongoUserId);
         if (existingSocket && existingSocket.id !== socket.id) {
           existingSocket.disconnect(true);
         }
 
-        socket.userId = uid;
-        onlineUsers.set(uid, socket);
+        // 🔹 Register socket
+        socket.userId = mongoUserId;
+        onlineUsers.set(mongoUserId, socket);
 
-        console.log("USER REGISTERED:", uid);
-        console.log("ONLINE USERS:", [...onlineUsers.keys()]);
-        console.log("ONLINE POLICE:", [...onlinePolice.keys()]);
+        console.log("USER REGISTERED:", mongoUserId);
       } catch (err) {
-        console.error("Invalid Firebase token", err.message);
+        console.error("Firebase token verification failed:", err.message);
         socket.disconnect(true);
       }
     });
@@ -121,7 +133,7 @@ const initSockets = (io) => {
 
       // Validate values
       if (typeof latitude !== "number" || typeof longitude !== "number") {
-        console.error("Invalid latitude/longitude:", payload);
+        console.error(" Invalid latitude/longitude:", payload);
         return;
       }
       //
@@ -136,21 +148,22 @@ const initSockets = (io) => {
       });
 
       // 🔹 find nearest friends
-      const user = await User.findOne({ uid: userId }).select("friends");
-      if (!user) return;
+      const user = await User.findById(userId).select("friends name");
+
       const nearestFriends = await User.aggregate([
         {
           $geoNear: {
-            near: { type: "Point", coordinates: [longitude, latitude] },
+            near: {
+              type: "Point",
+              coordinates: [longitude, latitude],
+            },
             distanceField: "distance",
             spherical: true,
             query: { _id: { $in: user.friends } },
           },
         },
-        { $project: { uid: 1, _id: 1 } },
-
         { $limit: 5 },
-      ]); /////////////////////////////////////////////////////////////////////////////////////////////////
+      ]);
 
       // 🔹 find nearest police stations
       const nearestStations = await PoliceStation.aggregate([
@@ -165,25 +178,25 @@ const initSockets = (io) => {
 
         { $limit: 5 },
       ]);
-
       // emit live location (ONLINE ONLY)
 
       nearestFriends.forEach((friend) => {
-        const s = onlineUsers.get(friend.uid); //all user including friends are connected using uid
+        const s = onlineUsers.get(friend._id.toString());
         if (s) {
           s.emit("friend-live-location", {
+            name: user.name,
             userId,
             latitude,
             longitude,
           });
         }
       });
-
       nearestStations.forEach((station) => {
-        const s = onlinePolice.get(station.policeStationId); //it is police id
+        const s = onlinePolice.get(station.policeStationId);
 
         if (s) {
           s.emit("user-live-location", {
+            name: user.name,
             userId,
             latitude,
             longitude,
@@ -231,9 +244,8 @@ const initSockets = (io) => {
         /*  FIND NEAREST (ONCE) FOR FCM */
         //even if once device disconnct must fire notification logic so ....
 
-        const user = await User.findOne({ uid: userId }).select("friends");
+        const user = await User.findById(userId).select("friends name");
         if (!user) return;
-
         // const nearestFriends = await User.aggregate([
         //   {
         //     $geoNear: {
@@ -246,9 +258,11 @@ const initSockets = (io) => {
         //       query: { _id: { $in: user.friends } },
         //     },
         //   },
-        //   { $limit: 20 },//20 is more than enough
+        //   { $limit: 5 },
         // ]);
+
         const nearestFriends = await User.aggregate([
+          //all friends
           {
             $match: {
               _id: { $in: user.friends },
@@ -264,8 +278,9 @@ const initSockets = (io) => {
               spherical: true,
             },
           },
-          { $project: { policeStationId: 1, _id: 1 } },
-
+          {
+            $project: { _id: 1, policeStationId: 1 },
+          },
           { $limit: 5 },
         ]);
 
@@ -284,9 +299,11 @@ const initSockets = (io) => {
               title: "Friend went offline",
               body: "Tap to view last known location",
               data: {
+                name: String(user.name),
                 userId: String(userId),
                 latitude: String(latitude),
                 longitude: String(longitude),
+                url: `https://www.google.com/maps?q=${latitude},${longitude}`
               },
             });
           }
@@ -305,14 +322,16 @@ const initSockets = (io) => {
               title: "User went offline",
               body: "Last known location available",
               data: {
+                name: String(user.name),
                 userId: String(userId),
                 latitude: String(latitude),
                 longitude: String(longitude),
+                url: `https://www.google.com/maps?q=${latitude},${longitude}`
               },
             });
           }
         }
-        userLastLocation.delete(userId);
+        userLastLocation.delete(userId); //delete from ram as all notification sent data is no more needed to clear ram and optimize
       }
 
       /* POLICE DISCONNECT*/
@@ -333,7 +352,8 @@ const initSockets = (io) => {
 export default initSockets;
 // User:
 // - Socket ID  → uid
-// - DB lookup  → uid
+// - Uid    ->  Mo_id
+// - DB lookup  → Mo_id
 // - Relations  → Mo _id
 
 // Police:

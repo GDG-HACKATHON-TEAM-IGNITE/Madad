@@ -51,11 +51,33 @@ const PoliceSign = ({ onBack }) => {
             }
         };
 
+        const generateDeviceId = () => {
+            const digits = "0123456789";
+            const letters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+            let id = "";
+
+            // 4 random digits
+            for (let i = 0; i < 4; i++) {
+                id += digits.charAt(Math.floor(Math.random() * digits.length));
+            }
+
+            // 3 random letters
+            for (let i = 0; i < 3; i++) {
+                id += letters.charAt(Math.floor(Math.random() * letters.length));
+            }
+
+            // Shuffle the 7 characters to make it a undefined "combination"
+            return id.split('').sort(() => 0.5 - Math.random()).join('');
+        };
+
         let storedId = localStorage.getItem("police_device_id");
-        if (!storedId) {
-            storedId = "DEV-" + Math.random().toString(36).substr(2, 9).toUpperCase();
+
+        // Check if storedId is missing OR if it uses the old "DEV-" format
+        if (!storedId || storedId.startsWith("DEV-")) {
+            console.log("Generating new Device ID (Reason: Missing or Legacy 'DEV-' format)");
+            storedId = generateDeviceId();
             localStorage.setItem("police_device_id", storedId);
-            setChecking(false); // New device, definitely not verified
+            setChecking(false);
         } else {
             checkVerification(storedId);
         }

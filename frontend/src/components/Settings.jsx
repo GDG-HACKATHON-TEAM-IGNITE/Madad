@@ -48,6 +48,7 @@ const Settings = () => {
       // 1. Set basic info from Firebase (fallback)
       let name = user.displayName || "";
       let email = user.email || "";
+      let displayedUid = user.uid; // Default to Firebase UID
 
       // 2. Fetch latest from Backend DB
       try {
@@ -62,6 +63,7 @@ const Settings = () => {
           const data = await res.json();
           if (data.name) name = data.name;
           if (data.email) email = data.email;
+          if (data.uid) displayedUid = data.uid; // Prefer MongoDB ID from backend
           console.log("Fetched profile from DB:", data);
         }
       } catch (err) {
@@ -136,6 +138,7 @@ const Settings = () => {
   };
 
   const saveContacts = async () => {
+    console.log("Saving contacts payload:", JSON.stringify({ friends: contacts }));
     await fetch("http://localhost:5000/api/user/addfriends", {
       method: "PATCH",
       headers: {
@@ -170,8 +173,8 @@ const Settings = () => {
           disabled={!editing}
           onChange={(e) => setProfile({ ...profile, fullName: e.target.value })}
           className={`w-full mb-4 px-4 py-3 rounded-xl ${editing
-              ? "border focus:ring-2 focus:ring-[#a7c7e7] outline-none"
-              : "bg-[#f2f6fb]"
+            ? "border focus:ring-2 focus:ring-[#a7c7e7] outline-none"
+            : "bg-[#f2f6fb]"
             }`}
         />
 
@@ -182,8 +185,8 @@ const Settings = () => {
           disabled={!editing}
           onChange={(e) => setProfile({ ...profile, email: e.target.value })}
           className={`w-full mb-4 px-4 py-3 rounded-xl ${editing
-              ? "border focus:ring-2 focus:ring-[#a7c7e7] outline-none"
-              : "bg-[#f2f6fb]"
+            ? "border focus:ring-2 focus:ring-[#a7c7e7] outline-none"
+            : "bg-[#f2f6fb]"
             }`}
         />
 
