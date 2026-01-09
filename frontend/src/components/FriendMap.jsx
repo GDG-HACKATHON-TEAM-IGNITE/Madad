@@ -70,10 +70,10 @@ export default function FriendMap() {
 
     // 👥 FRIEND LOCATIONS (ONLY event used in HelpMate)
     useEffect(() => {
-        const handleFriendLocation = ({ userId, latitude, longitude }) => {
+        const handleFriendLocation = ({ userId, latitude, longitude, name }) => {
             setFriends((prev) => ({
                 ...prev,
-                [userId]: { latitude, longitude },
+                [userId]: { latitude, longitude, name },
             }));
         };
 
@@ -112,7 +112,9 @@ export default function FriendMap() {
                 {/* 👥 Friends */}
                 {Object.entries(friends).map(([id, loc]) => (
                     <Marker key={id} position={[loc.latitude, loc.longitude]}>
-                        <Popup>Friend</Popup>
+                        <Popup>
+                            <strong>Name:</strong> {loc.name || "Friend"} <br />
+                        </Popup>
                     </Marker>
                 ))}
             </MapContainer>

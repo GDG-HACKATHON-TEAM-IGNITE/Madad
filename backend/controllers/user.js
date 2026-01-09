@@ -52,7 +52,7 @@ export const userCreate = async (req, res) => {
         name: user.name,
         photo: user.photo,
         phone: user.phone,
-        uid: user._id,
+        uid: user._id, // Sending MongoDB ID as 'uid' for frontend compatibility
       },
     });
   } catch (err) {
@@ -120,12 +120,13 @@ export const addFriends = async (req, res) => {
     );
 
     // 6️⃣ Detect invalid / non-existing UIDs
-    const invalidIds = friends.filter((fuid) => !existingUids.has(fuid)); //change 1
+    const foundUIDs = new Set(existingUsers.map((u) => u.uid));
+    const notAddedUIDs = friends.filter((fuid) => !foundUIDs.has(fuid));
 
     return res.status(200).json({
       message: "Friends added successfully",
-      addedFriends: existingIds,
-      notAddedFriends: notAddedFriends,
+      addedCount: existingIds.length,
+      notAddedUIDs,
     });
   } catch (error) {
     console.error("addFriends error:", error);
@@ -380,7 +381,14 @@ export const editProfile = async (req, res) => {
 
     return res.status(200).json({
       message: "Profile updated successfully",
-      user: updatedUser,
+      user: {
+        uid: updatedUser._id, // Return MongoDB ID as 'uid'
+        name: updatedUser.name,
+        email: updatedUser.email,
+        phone: updatedUser.phone,
+        photo: updatedUser.photo,
+        provider: updatedUser.provider,
+      },
     });
   } catch (error) {
     // Handle duplicate phone/email errors
@@ -418,7 +426,7 @@ export const getProfile = async (req, res) => {
       name: user.name,
       email: user.email,
       photo: user.photo,
-      uid: user.uid,
+      uid: user._id, // Return MongoDB ID as 'uid'
       phone: user.phone,
     });
   } catch (error) {

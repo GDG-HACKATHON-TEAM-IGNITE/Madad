@@ -23,6 +23,7 @@ const initSockets = (io) => {
  */
 
     //socket.on("register-user", ({ userId }) => {
+    //socket.on("register-user", ({ userId }) => {
     socket.on("register-user", async (payload) => {
       try {
         console.log("RAW payload:", payload);
@@ -36,16 +37,27 @@ const initSockets = (io) => {
         const decoded = await admin.auth().verifyIdToken(token);
         const uid = decoded.uid; //
 
+        // 🔹 FETCH MONGOOSE ID
+        const user = await User.findOne({ uid }).select("_id");
+
+        if (!user) {
+          console.error("User not found for UID:", uid);
+          socket.disconnect(true);
+          return;
+        }
+
+        const userId = user._id.toString();
+
         // 🔁 Handle duplicate connections
-        const existingSocket = onlineUsers.get(uid);
+        const existingSocket = onlineUsers.get(userId);
         if (existingSocket && existingSocket.id !== socket.id) {
           existingSocket.disconnect(true);
         }
 
-        socket.userId = uid;
-        onlineUsers.set(uid, socket);
+        socket.userId = userId;
+        onlineUsers.set(userId, socket);
 
-        console.log("USER REGISTERED:", uid);
+        console.log("USER REGISTERED:", userId);
         console.log("ONLINE USERS:", [...onlineUsers.keys()]);
         console.log("ONLINE POLICE:", [...onlinePolice.keys()]);
       } catch (err) {
@@ -136,8 +148,10 @@ const initSockets = (io) => {
       });
 
       // 🔹 find nearest friends
-      const user = await User.findOne({ uid: userId }).select("friends");
+      const user = await User.findById(userId).select("friends name _id");
       if (!user) return;
+
+
       const nearestFriends = await User.aggregate([
         {
           $geoNear: {
@@ -169,12 +183,13 @@ const initSockets = (io) => {
       // emit live location (ONLINE ONLY)
 
       nearestFriends.forEach((friend) => {
-        const s = onlineUsers.get(friend.uid); //all user including friends are connected using uid
+        const s = onlineUsers.get(friend._id.toString()); // Use Mongo ID
         if (s) {
           s.emit("friend-live-location", {
             userId,
             latitude,
             longitude,
+            name: user.name,
           });
         }
       });
@@ -187,6 +202,7 @@ const initSockets = (io) => {
             userId,
             latitude,
             longitude,
+            name: user.name,
           });
         }
       });
@@ -231,7 +247,7 @@ const initSockets = (io) => {
         /*  FIND NEAREST (ONCE) FOR FCM */
         //even if once device disconnct must fire notification logic so ....
 
-        const user = await User.findOne({ uid: userId }).select("friends");
+        const user = await User.findById(userId).select("friends name");
         if (!user) return;
 
         // const nearestFriends = await User.aggregate([
@@ -284,9 +300,11 @@ const initSockets = (io) => {
               title: "Friend went offline",
               body: "Tap to view last known location",
               data: {
+                name: String(user.name),
                 userId: String(userId),
                 latitude: String(latitude),
                 longitude: String(longitude),
+                url: `https://www.google.com/maps?q=${latitude},${longitude}`
               },
             });
           }
@@ -305,9 +323,11 @@ const initSockets = (io) => {
               title: "User went offline",
               body: "Last known location available",
               data: {
+                name: String(user.name),
                 userId: String(userId),
                 latitude: String(latitude),
                 longitude: String(longitude),
+                url: `https://www.google.com/maps?q=${latitude},${longitude}`
               },
             });
           }

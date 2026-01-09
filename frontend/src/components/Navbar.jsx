@@ -13,6 +13,9 @@ const Navbar = () => {
   const handleLogout = async () => {
     try {
       await signOut(auth);
+      // Clear stored role and other user data
+      localStorage.removeItem('userRole');
+      localStorage.removeItem('mongo_id');
       navigate("/");
     } catch (error) {
       console.error("Logout failed:", error);
