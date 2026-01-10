@@ -7,6 +7,9 @@ const transporter = nodemailer.createTransport({
     user: process.env.EMAILID,
     pass: process.env.EMAILPASS,
   },
+  pool: true,
+  maxConnections: 3,
+  maxMessages: 100,
 });
 export const mail =async ({to,html}) => {
   const info = await transporter.sendMail({

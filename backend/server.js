@@ -70,6 +70,9 @@ app.get("/api/profile", decodeToken, getProfile);
 
 // chatbot route (separate limiter)
 app.post("/api/chat", chatLimiter, fetchmessage);
+app.get("/health", (req, res) => {
+  res.status(200).send("sab changa si brother");
+});
 
 /* =======================
    SOCKET SERVER
