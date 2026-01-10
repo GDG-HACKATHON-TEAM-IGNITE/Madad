@@ -98,7 +98,7 @@ const Settings = () => {
 
     setSaving(true);
 
-    await fetch(`${import.meta.env.VITE_BACKEND_URL}api/user/profile`, {
+    await fetch(`${import.meta.env.VITE_BACKEND_URL}/api/user/profile`, {
       method: "PATCH",
       headers: {
         "Content-Type": "application/json",
@@ -155,7 +155,7 @@ const Settings = () => {
   return (
     <div className="min-h-screen bg-linear-to-br from-[#f4f8fc] to-[#eef3f9] px-4 py-10 flex justify-center">
       <div className="w-full max-w-4xl bg-white rounded-3xl shadow-sm p-6 sm:p-10">
-        <h1 className="text-3xl font-bold mb-8">
+        <h1 className="text-3xl font-bold mb-8 text-center lg:text-left">
           Settings <span className="text-[#a7c7e7]">Profile</span>
         </h1>
 

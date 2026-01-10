@@ -15,7 +15,7 @@ const Cards = () => {
           </div>
           <div className='w-full h-1/2 flex justify-center items-center'>
           <p className='hidden lg:flex lg:text-[#A7C7E7] lg:w-[20%] lg:h-full lg:text-8xl lg:justify-center lg:items-center'>01</p>
-          <img src="https://i.pinimg.com/736x/3b/0a/19/3b0a19c08d26572cdbb8a07a629eb166.jpg" alt="" className='object-cover w-[80%] h-[60vh] lg:h-full rounded-3xl' />
+          <img src="https://i.pinimg.com/736x/3b/0a/19/3b0a19c08d26572cdbb8a07a629eb166.jpg" alt="" className='object-cover w-[80%] h-[50vh] lg:h-full rounded-3xl' />
           </div>
         </div>
         <div className='w-full lg:w-[45%] h-auto lg:h-[90%]'>

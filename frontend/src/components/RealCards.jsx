@@ -67,7 +67,7 @@ const RealCards = () => {
         onMouseMove={(e) => handleMouseMove(e, index)}
         onMouseEnter={() => setHoveredIndex(index)}
         onMouseLeave={() => setHoveredIndex(null)}
-        className="relative w-full max-w-72.5 sm:max-w-sm h-80 sm:h-96 rounded-xl p-0.5 bg-white overflow-hidden shadow-lg cursor-pointer mx-auto"
+        className="relative w-full max-w-78 sm:max-w-sm h-80 sm:h-96 rounded-xl p-0.5 bg-white overflow-hidden shadow-lg cursor-pointer mx-auto"
       >
         {hoveredIndex === index && (
           <div

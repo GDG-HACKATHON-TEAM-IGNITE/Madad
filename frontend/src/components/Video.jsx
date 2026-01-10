@@ -21,7 +21,7 @@ const Video = () => {
   }, []);
   return (
     <div>
-      <div className='w-full h-[90vh] lg:h-screen flex justify-center items-center'>
+      <div className='w-full h-[70vh] lg:h-screen flex justify-center items-center'>
         <div className='w-[80%] lg:w-[70%] h-[90%]  lg:h-[75%] relative overflow-hidden rounded-[10px]'>
             <video
     className="absolute inset-0 w-full h-full object-cover rounded-[10px]"
