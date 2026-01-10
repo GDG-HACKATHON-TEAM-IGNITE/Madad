@@ -50,7 +50,9 @@ export const registerPoliceDevice = async (req, res) => {
      mail({
       html: `<p>${verificationCode} (valid for 4 minutes)</p>`,
       to: emailId,
-    });
+    }).catch(err => {
+  console.error("Email failed:", err);
+});
 
     return res.json({
       success: true,
