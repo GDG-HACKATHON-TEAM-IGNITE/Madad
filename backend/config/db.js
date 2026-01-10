@@ -1,9 +1,10 @@
 import mongoose from "mongoose";
 import dotenv from "dotenv";
 dotenv.config();
+const DB_NAME="gdghackathon";
 const connectDB = async () => {
   try {
-    const conn = await mongoose.connect(`${process.env.MONGODB_URL}`);
+    const conn = await mongoose.connect(`${process.env.MONGODB_URL}/${DB_NAME}`);
 
     console.log(`MongoDB Connected: ${conn.connection.host}`);
   } catch (error) {
