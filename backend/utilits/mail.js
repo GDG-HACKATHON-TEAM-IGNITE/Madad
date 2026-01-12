@@ -11,30 +11,25 @@ dotenv.config();
 //   maxConnections: 3,
 //   maxMessages: 100,
 // });
-const transporter = nodemailer.createTransport({
-  host: process.env.SMTP_HOST,
-  port: Number(process.env.SMTP_PORT),
-  secure: true, // TLS on 587
-  auth: {
-    user: process.env.SMTP_USER,
-    pass: process.env.SMTP_PASS,
-  },
-});
+// 
+import SibApiV3Sdk from "sib-api-v3-sdk";
 
-transporter.verify((err) => {
-  if (err) {
-    console.error("SMTP ERROR:", err);
-  } else {
-    console.log("SMTP READY");
-  }
-});
-export const mail =async ({to,html}) => {
-  const info = await transporter.sendMail({
-    from:process.env.EMAILID,
-    to,
+const client = SibApiV3Sdk.ApiClient.instance;
+client.authentications["api-key"].apiKey =
+  process.env.BREVO_API_KEY;
+
+const apiInstance = new SibApiV3Sdk.TransactionalEmailsApi();
+
+export async function sendMail({ to, html }) {
+  await apiInstance.sendTransacEmail({
+    sender: {
+      email: "pinaki82499730@gmail.com",
+      name: "Dept Verification",
+    },
+    to: [{ email: to }],
     subject: "Dept verification code",
-    html, // HTML version of the message
+    htmlContent: html,
   });
 
-  console.log("Message sent:", info.messageId);
+  console.log("Email sent via Brevo API");
 }
