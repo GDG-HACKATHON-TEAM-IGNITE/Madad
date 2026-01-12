@@ -31,6 +31,11 @@ import admin from "../config/firebase-config.js";
 
 const sendFCM = async ({ token, title, body, data }) => {
   try {
+     // token validation 
+    if (!token || typeof token !== "string" || token.length < 50) {
+      console.error("Invalid FCM token:", token);
+      return;
+    }
     const message = {
       token,
       notification: {

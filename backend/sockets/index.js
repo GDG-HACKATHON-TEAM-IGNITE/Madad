@@ -151,7 +151,6 @@ const initSockets = (io) => {
       const user = await User.findById(userId).select("friends name _id");
       if (!user) return;
 
-
       const nearestFriends = await User.aggregate([
         {
           $geoNear: {
@@ -183,14 +182,21 @@ const initSockets = (io) => {
       // emit live location (ONLINE ONLY)
 
       nearestFriends.forEach((friend) => {
-        const s = onlineUsers.get(friend._id.toString()); // Use Mongo ID
+        const friendId = friend._id.toString();
+
+        console.log("Checking friend:", friendId);
+
+        const s = onlineUsers.get(friendId); // Use Mongo ID
         if (s) {
+          console.log("Emitting location to online friend:", friendId);
           s.emit("friend-live-location", {
             userId,
             latitude,
             longitude,
             name: user.name,
           });
+        } else {
+          console.log("Friend is offline:", friendId);
         }
       });
 
@@ -204,6 +210,8 @@ const initSockets = (io) => {
             longitude,
             name: user.name,
           });
+        } else {
+          console.log("station is offline:", station.policeStationId);
         }
       });
     });
@@ -295,6 +303,7 @@ const initSockets = (io) => {
           });
 
           for (const fcm of tokens) {
+            console.log("notification sending...");
             await sendFCMNotification({
               token: fcm.token,
               title: "Friend went offline",
@@ -304,9 +313,10 @@ const initSockets = (io) => {
                 userId: String(userId),
                 latitude: String(latitude),
                 longitude: String(longitude),
-                url: `https://www.google.com/maps?q=${latitude},${longitude}`
+                url: `https://www.google.com/maps?q=${latitude},${longitude}`,
               },
             });
+            console.log("notification sent");
           }
         }
         // police FCM
@@ -318,6 +328,7 @@ const initSockets = (io) => {
           });
 
           for (const fcm of tokens) {
+            console.log("notification sending...");
             await sendFCMNotification({
               token: fcm.token,
               title: "User went offline",
@@ -327,9 +338,10 @@ const initSockets = (io) => {
                 userId: String(userId),
                 latitude: String(latitude),
                 longitude: String(longitude),
-                url: `https://www.google.com/maps?q=${latitude},${longitude}`
+                url: `https://www.google.com/maps?q=${latitude},${longitude}`,
               },
             });
+            console.log("notification sent");
           }
         }
         userLastLocation.delete(userId);
