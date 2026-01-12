@@ -18,10 +18,10 @@ const client = SibApiV3Sdk.ApiClient.instance;
 client.authentications["api-key"].apiKey =
   process.env.BREVO_API_KEY;
 
-const apiInstance = new SibApiV3Sdk.TransactionalEmailsApi();
+const emailApi = new SibApiV3Sdk.TransactionalEmailsApi();
 
-export async function sendMail({ to, html }) {
-  await apiInstance.sendTransacEmail({
+export async function mail({ to, html }) {
+  await emailApi.sendTransacEmail({
     sender: {
       email: "pinaki82499730@gmail.com",
       name: "Dept Verification",
@@ -31,5 +31,5 @@ export async function sendMail({ to, html }) {
     htmlContent: html,
   });
 
-  console.log("Email sent via Brevo API");
+  console.log("Email sent via Brevo API ");
 }
