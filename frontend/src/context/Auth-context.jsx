@@ -1,7 +1,7 @@
 import { createContext, useContext, useEffect, useState } from "react";
 import { onAuthStateChanged } from "firebase/auth";
 import { auth } from "../config/firebase-config";
-import { getToken } from "firebase/messaging";
+import { getToken, onMessage } from "firebase/messaging";
 import { messaging } from "../config/firebase-config";
 
 const AuthContext = createContext();
@@ -36,6 +36,15 @@ export const AuthProvider = ({ children }) => {
   useEffect(() => {
     // Req user for notification permission
     requestPermission();
+
+    // Listen for foreground messages
+    const unsubscribe = onMessage(messaging, (payload) => {
+      console.log("Foreground Message received: ", payload);
+      // Optional: Show a toast or in-app notification here
+      // alert(`New Notification: ${payload.notification?.title}`);
+    });
+
+    return () => unsubscribe();
   }, []);
 
   useEffect(() => {
@@ -57,7 +66,7 @@ export const AuthProvider = ({ children }) => {
               Authorization: `Bearer ${token}`,
             },
             // Include fcmToken in the body
-            body: JSON.stringify({ fcmToken }), 
+            body: JSON.stringify({ fcmToken }),
           });
 
           if (res.ok) {

@@ -19,7 +19,7 @@ messaging.onBackgroundMessage((payload) => {
     const notificationTitle = payload.notification.title;
     const notificationOptions = {
         body: payload.notification.body,
-        icon: '/logo.png', // Ensure this file exists in public/
+        icon: '/vite.svg', // Ensure this file exists in public/
         data: payload.data
     };
 

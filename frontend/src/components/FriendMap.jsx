@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import {
     MapContainer,
     TileLayer,
@@ -36,7 +36,7 @@ const Recenter = ({ lat, lng }) => {
 
 export default function FriendMap() {
     const [myLocation, setMyLocation] = useState(null);
-    const [friends, setFriends] = useState({});
+    const friendsMarkersRef = useRef({});
 
     // 🔐 REGISTER (same as HelpMate)
     useEffect(() => {
@@ -69,21 +69,45 @@ export default function FriendMap() {
         );
     }, []);
 
-    // 👥 FRIEND LOCATIONS (ONLY event used in HelpMate)
-    useEffect(() => {
-        const handleFriendLocation = ({ userId, latitude, longitude, name }) => {
-            setFriends((prev) => ({
-                ...prev,
-                [userId]: { latitude, longitude, name },
-            }));
-        };
+    // 👥 FRIEND LOCATIONS (Optimized with direct Leaflet manipulation)
+    const FriendsLayer = () => {
+        const map = useMap();
 
-        socket.on("friend-live-location", handleFriendLocation);
+        useEffect(() => {
+            const handleFriendLocation = ({ userId, latitude, longitude, name }) => {
+                if (friendsMarkersRef.current[userId]) {
+                    // Update existing marker
+                    friendsMarkersRef.current[userId].setLatLng([latitude, longitude]);
+                } else {
+                    // Create new marker
+                    const marker = L.marker([latitude, longitude])
+                        .addTo(map)
+                        .bindPopup(`<strong>Name:</strong> ${name || "Friend"}`);
+                    friendsMarkersRef.current[userId] = marker;
+                }
+            };
 
-        return () => {
-            socket.off("friend-live-location", handleFriendLocation);
-        };
-    }, []);
+            const handleDisconnect = ({ userId }) => {
+                if (friendsMarkersRef.current[userId]) {
+                    friendsMarkersRef.current[userId].remove();
+                    delete friendsMarkersRef.current[userId];
+                }
+            };
+
+            socket.on("friend-live-location", handleFriendLocation);
+            socket.on("user-offline", handleDisconnect);
+
+            return () => {
+                socket.off("friend-live-location", handleFriendLocation);
+                socket.off("user-offline", handleDisconnect);
+                // Cleanup markers on unmount
+                Object.values(friendsMarkersRef.current).forEach((marker) => marker.remove());
+                friendsMarkersRef.current = {};
+            };
+        }, [map]);
+
+        return null;
+    };
 
     return (
         <div className="w-full h-screen flex justify-center">
@@ -110,14 +134,8 @@ export default function FriendMap() {
                     </>
                 )}
 
-                {/* 👥 Friends */}
-                {Object.entries(friends).map(([id, loc]) => (
-                    <Marker key={id} position={[loc.latitude, loc.longitude]}>
-                        <Popup>
-                            <strong>Name:</strong> {loc.name || "Friend"} <br />
-                        </Popup>
-                    </Marker>
-                ))}
+                {/* 👥 Friends Optimized Layer */}
+                <FriendsLayer />
             </MapContainer>
         </div>
     );
