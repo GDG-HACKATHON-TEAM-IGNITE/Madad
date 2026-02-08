@@ -37,6 +37,7 @@ export const userCreate = async (req, res) => {
         });
 
         //  bug: fcmTokens array must exist in schema
+        if (!user.fcmTokens) user.fcmTokens = [];
         user.fcmTokens.push(tokenDoc._id);
         await user.save();
       } else {
@@ -47,6 +48,7 @@ export const userCreate = async (req, res) => {
         await tokenDoc.save();
 
         // 🔹 Fix: Also add to user array if not present
+        if (!user.fcmTokens) user.fcmTokens = [];
         if (!user.fcmTokens.includes(tokenDoc._id)) {
           user.fcmTokens.push(tokenDoc._id);
           await user.save();

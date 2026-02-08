@@ -27,12 +27,15 @@ const UserSchema = new mongoose.Schema({
   phone: String,
 
   //  missing but used in controller
-  fcmTokens: [
-    {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "FcmToken",
-    },
-  ],
+  fcmTokens: {
+    type: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "FcmToken",
+      },
+    ],
+    default: [],
+  },
 
   friends: [
     {
