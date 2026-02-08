@@ -6,6 +6,8 @@ export const userCreate = async (req, res) => {
   try {
     const { uid, email, name, picture } = req.user;
     const { fcmToken, phone } = req.body;
+    console.log("userCreate body:", req.body); // Debug log
+    console.log("Received FCM Token:", fcmToken); // Debug log
 
     // Find user by uid
     let user = await User.findOne({ uid });
