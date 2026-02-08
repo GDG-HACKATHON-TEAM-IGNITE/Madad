@@ -40,16 +40,17 @@ export default function FriendMap() {
 
     // 🔐 REGISTER (same as HelpMate)
     useEffect(() => {
-        const register = async () => {
-            const auth = getAuth();
-            const user = auth.currentUser;
-            if (!user) return;
+        const auth = getAuth();
+        const unsubscribe = auth.onAuthStateChanged(async (user) => {
+            if (user) {
+                console.log("Socket Registering User:", user.uid);
+                const token = await user.getIdToken();
+                socket.connect();
+                socket.emit("register-user", { token });
+            }
+        });
 
-            const token = await user.getIdToken();
-            socket.emit("register-user", { token });
-        };
-
-        register();
+        return () => unsubscribe();
     }, []);
 
     // 📍 OWN LOCATION (view only)

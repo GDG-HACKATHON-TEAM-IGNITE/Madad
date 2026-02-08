@@ -11,20 +11,25 @@ export const AuthProvider = ({ children }) => {
   const [authToken, setAuthToken] = useState("");
 
   async function requestPermission() {
-    console.log(Notification.permission);
+    try {
+      console.log(Notification.permission);
 
-    const permission = await Notification.requestPermission();
-    if (permission === "granted") {
-      // Generate Token
-      const token = await getToken(messaging, {
-        vapidKey:
-          "BFy93njkIu_dB4ocbim87cYBhvbyEHz_LLXtCRL0S5Oua92tTuhzka9S-6dy0Pdxbz2Kl6igP0tnoXkOT8X2zf0",
-      });
-      console.log("Token Gen", token);
-      // Send this token  to server ( db)
-    } else if (permission === "denied") {
-      alert("You denied for the notification");
-      return;
+      const permission = await Notification.requestPermission();
+      if (permission === "granted") {
+        // Generate Token
+        const token = await getToken(messaging, {
+          vapidKey:
+            "BFy93njkIu_dB4ocbim87cYBhvbyEHz_LLXtCRL0S5Oua92tTuhzka9S-6dy0Pdxbz2Kl6igP0tnoXkOT8X2zf0",
+        });
+        console.log("Token Gen", token);
+        return token;
+      } else if (permission === "denied") {
+        alert("You denied for the notification");
+        return null;
+      }
+    } catch (error) {
+      console.error("Error requesting permission or getting token:", error);
+      return null;
     }
   }
 
@@ -41,6 +46,9 @@ export const AuthProvider = ({ children }) => {
         setAuthToken(token);
 
         try {
+          // Get FCM Token before syncing
+          const fcmToken = await requestPermission();
+
           // Sync with backend to get Mongoose ID
           const res = await fetch(`${import.meta.env.VITE_BACKEND_URL}api/user/user`, {
             method: "POST",
@@ -48,7 +56,8 @@ export const AuthProvider = ({ children }) => {
               "Content-Type": "application/json",
               Authorization: `Bearer ${token}`,
             },
-            body: JSON.stringify({}), // Body can be empty, middleware handles token
+            // Include fcmToken in the body
+            body: JSON.stringify({ fcmToken }), 
           });
 
           if (res.ok) {
@@ -61,6 +70,7 @@ export const AuthProvider = ({ children }) => {
         } catch (error) {
           console.error("Backend sync failed:", error);
         }
+
 
       } else {
         setIsAuth(false);
