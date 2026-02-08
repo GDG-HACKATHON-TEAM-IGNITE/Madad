@@ -17,10 +17,18 @@ export const AuthProvider = ({ children }) => {
       const permission = await Notification.requestPermission();
       if (permission === "granted") {
         // Generate Token
-        const token = await getToken(messaging, {
-          vapidKey:
-            "BFy93njkIu_dB4ocbim87cYBhvbyEHz_LLXtCRL0S5Oua92tTuhzka9S-6dy0Pdxbz2Kl6igP0tnoXkOT8X2zf0",
-        });
+        let token;
+        if ('serviceWorker' in navigator) {
+          const registration = await navigator.serviceWorker.ready;
+          token = await getToken(messaging, {
+            vapidKey: "BFy93njkIu_dB4ocbim87cYBhvbyEHz_LLXtCRL0S5Oua92tTuhzka9S-6dy0Pdxbz2Kl6igP0tnoXkOT8X2zf0",
+            serviceWorkerRegistration: registration
+          });
+        } else {
+          token = await getToken(messaging, {
+            vapidKey: "BFy93njkIu_dB4ocbim87cYBhvbyEHz_LLXtCRL0S5Oua92tTuhzka9S-6dy0Pdxbz2Kl6igP0tnoXkOT8X2zf0",
+          });
+        }
         console.log("Token Gen", token);
         return token;
       } else if (permission === "denied") {
