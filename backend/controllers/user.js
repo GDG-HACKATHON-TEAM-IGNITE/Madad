@@ -45,6 +45,12 @@ export const userCreate = async (req, res) => {
         tokenDoc.isActive = true;
         tokenDoc.lastActiveAt = new Date();
         await tokenDoc.save();
+
+        // 🔹 Fix: Also add to user array if not present
+        if (!user.fcmTokens.includes(tokenDoc._id)) {
+          user.fcmTokens.push(tokenDoc._id);
+          await user.save();
+        }
       }
     }
 
