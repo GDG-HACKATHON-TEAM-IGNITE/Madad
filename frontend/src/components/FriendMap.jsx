@@ -23,34 +23,48 @@ const DefaultIcon = L.icon({
 });
 L.Marker.prototype.options.icon = DefaultIcon;
 
+// 🔴 Red Icon for Friends
+const RedIcon = L.icon({
+    iconUrl: icon,
+    shadowUrl: shadow,
+    iconSize: [25, 41],
+    iconAnchor: [12, 41],
+    className: "red-filter-marker"
+});
+
 const defaultCenter = [20.2961, 85.8245];
 
-// Auto-center on self
+// Auto-center on self (ONLY ONCE)
 const Recenter = ({ lat, lng }) => {
     const map = useMap();
+    const isCentered = useRef(false);
+
     useEffect(() => {
-        map.setView([lat, lng], 15);
-    }, [lat, lng]);
+        if (!isCentered.current && lat && lng) {
+            map.setView([lat, lng], 15);
+            isCentered.current = true;
+        }
+    }, [lat, lng, map]);
     return null;
 };
 
 export default function FriendMap() {
     const [myLocation, setMyLocation] = useState(null);
-    const friendsMarkersRef = useRef({});
+    const [friends, setFriends] = useState({});
 
-    // 🔐 REGISTER (same as HelpMate)
+    // 🔐 REGISTER
     useEffect(() => {
-        const auth = getAuth();
-        const unsubscribe = auth.onAuthStateChanged(async (user) => {
+        const register = async () => {
+            const auth = getAuth();
+            const user = auth.currentUser;
             if (user) {
                 console.log("Socket Registering User:", user.uid);
                 const token = await user.getIdToken();
-                socket.connect();
+                if (!socket.connected) socket.connect();
                 socket.emit("register-user", { token });
             }
-        });
-
-        return () => unsubscribe();
+        };
+        register();
     }, []);
 
     // 📍 OWN LOCATION (view only)
@@ -69,45 +83,31 @@ export default function FriendMap() {
         );
     }, []);
 
-    // 👥 FRIEND LOCATIONS (Optimized with direct Leaflet manipulation)
-    const FriendsLayer = () => {
-        const map = useMap();
+    // 👥 FRIEND LOCATIONS
+    useEffect(() => {
+        const handleFriendLocation = ({ userId, latitude, longitude, name }) => {
+            setFriends((prev) => ({
+                ...prev,
+                [userId]: { latitude, longitude, name },
+            }));
+        };
 
-        useEffect(() => {
-            const handleFriendLocation = ({ userId, latitude, longitude, name }) => {
-                if (friendsMarkersRef.current[userId]) {
-                    // Update existing marker
-                    friendsMarkersRef.current[userId].setLatLng([latitude, longitude]);
-                } else {
-                    // Create new marker
-                    const marker = L.marker([latitude, longitude])
-                        .addTo(map)
-                        .bindPopup(`<strong>Name:</strong> ${name || "Friend"}`);
-                    friendsMarkersRef.current[userId] = marker;
-                }
-            };
+        const handleOffline = ({ userId }) => {
+            setFriends(prev => {
+                const newFriends = { ...prev };
+                delete newFriends[userId];
+                return newFriends;
+            });
+        };
 
-            const handleDisconnect = ({ userId }) => {
-                if (friendsMarkersRef.current[userId]) {
-                    friendsMarkersRef.current[userId].remove();
-                    delete friendsMarkersRef.current[userId];
-                }
-            };
+        socket.on("friend-live-location", handleFriendLocation);
+        socket.on("user-offline", handleOffline);
 
-            socket.on("friend-live-location", handleFriendLocation);
-            socket.on("user-offline", handleDisconnect);
-
-            return () => {
-                socket.off("friend-live-location", handleFriendLocation);
-                socket.off("user-offline", handleDisconnect);
-                // Cleanup markers on unmount
-                Object.values(friendsMarkersRef.current).forEach((marker) => marker.remove());
-                friendsMarkersRef.current = {};
-            };
-        }, [map]);
-
-        return null;
-    };
+        return () => {
+            socket.off("friend-live-location", handleFriendLocation);
+            socket.off("user-offline", handleOffline);
+        };
+    }, []);
 
     return (
         <div className="w-full h-screen flex justify-center">
@@ -134,9 +134,27 @@ export default function FriendMap() {
                     </>
                 )}
 
-                {/* 👥 Friends Optimized Layer */}
-                <FriendsLayer />
+                {/* 👥 Friends */}
+                {Object.entries(friends).map(([id, loc]) => (
+                    <Marker
+                        key={id}
+                        position={[loc.latitude, loc.longitude]}
+                        icon={RedIcon}
+                    >
+                        <Popup>
+                            <strong>Name:</strong> {loc.name || "Friend"} <br />
+                        </Popup>
+                    </Marker>
+                ))}
             </MapContainer>
+
+            <style>
+                {`
+                    .red-filter-marker {
+                        filter: hue-rotate(150deg);
+                    }
+                `}
+            </style>
         </div>
     );
 }
