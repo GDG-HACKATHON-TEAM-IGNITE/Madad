@@ -147,23 +147,15 @@ const initSockets = (io) => {
         time: Date.now(),
       });
 
-      // 🔹 find nearest friends
+      // 🔹 fetch ALL friends (no proximity filter — $geoNear was silently failing
+      //    because users have no stored location field in DB)
       const user = await User.findById(userId).select("friends name _id");
       if (!user) return;
 
-      const nearestFriends = await User.aggregate([
-        {
-          $geoNear: {
-            near: { type: "Point", coordinates: [longitude, latitude] },
-            distanceField: "distance",
-            spherical: true,
-            query: { _id: { $in: user.friends } },
-          },
-        },
-        { $project: { uid: 1, _id: 1 } },
-
-        { $limit: 5 },
-      ]); /////////////////////////////////////////////////////////////////////////////////////////////////
+      const allFriends = await User.find(
+        { _id: { $in: user.friends } },
+        { _id: 1 }
+      ).lean();
 
       // 🔹 find nearest police stations
       const nearestStations = await PoliceStation.aggregate([
@@ -181,7 +173,7 @@ const initSockets = (io) => {
 
       // emit live location (ONLINE ONLY)
 
-      nearestFriends.forEach((friend) => {
+      allFriends.forEach((friend) => {
         const friendId = friend._id.toString();
 
         console.log("Checking friend:", friendId);
@@ -236,6 +228,7 @@ const initSockets = (io) => {
         console.log("ONLINE POLICE:", [...onlinePolice.keys()]);
 
         const lastLocation = userLastLocation.get(userId);
+        userLastLocation.delete(userId); // always clean up regardless of what follows
         if (!lastLocation) return;
 
         const { latitude, longitude } = lastLocation;
@@ -344,7 +337,6 @@ const initSockets = (io) => {
             console.log("notification sent");
           }
         }
-        userLastLocation.delete(userId);
       }
 
       /* POLICE DISCONNECT*/
