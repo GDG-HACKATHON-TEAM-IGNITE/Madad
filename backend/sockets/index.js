@@ -7,23 +7,17 @@ import FcmToken from "../models/fcmToken.model.js";
 
 import sendFCMNotification from "../notification/notificationFcm.js";
 import admin from "../config/firebase-config.js";
-// wherever you initialize firebase-admin
 
 //runtime hashmaps......
-const onlineUsers = new Map(); // userId/uid -> socket
+const onlineUsers = new Map(); // userId -> socket
 const onlinePolice = new Map(); // policeStationId -> socket
-const userLastLocation = new Map(); // userId -> { lat, lng, time }
+const userLastLocation = new Map(); // userId -> { latitude, longitude, time }
 
 const initSockets = (io) => {
   io.on("connection", (socket) => {
     console.log("Socket connected:", socket.id);
 
-    /* 
-     REGISTER
- */
-
-    //socket.on("register-user", ({ userId }) => {
-    //socket.on("register-user", ({ userId }) => {
+    /* REGISTER */
     socket.on("register-user", async (payload) => {
       try {
         console.log("RAW payload:", payload);
@@ -33,13 +27,10 @@ const initSockets = (io) => {
         const { token } = payload;
         if (!token) return;
 
-        // 🔐 VERIFY FIREBASE TOKEN
         const decoded = await admin.auth().verifyIdToken(token);
-        const uid = decoded.uid; //
+        const uid = decoded.uid;
 
-        // 🔹 FETCH MONGOOSE ID
         const user = await User.findOne({ uid }).select("_id");
-
         if (!user) {
           console.error("User not found for UID:", uid);
           socket.disconnect(true);
@@ -48,7 +39,6 @@ const initSockets = (io) => {
 
         const userId = user._id.toString();
 
-        // 🔁 Handle duplicate connections
         const existingSocket = onlineUsers.get(userId);
         if (existingSocket && existingSocket.id !== socket.id) {
           existingSocket.disconnect(true);
@@ -66,106 +56,84 @@ const initSockets = (io) => {
       }
     });
 
-    // socket.on("register-police", ({ policeStationId }) => {
     socket.on("register-police", (payload) => {
       console.log("RAW POLICE PAYLOAD:", payload);
 
-      // Handle Postman / string JSON
       if (typeof payload === "string") {
         try {
           payload = JSON.parse(payload);
         } catch (err) {
-          console.error(" Invalid JSON string for register-police");
+          console.error("Invalid JSON string for register-police");
           return;
         }
       }
 
-      // Validate payload
       if (!payload || typeof payload !== "object") {
-        console.error(" register-police payload is not an object");
+        console.error("register-police payload is not an object");
         return;
       }
+
       const policeStationId = payload.policeStationId;
       console.log("EXTRACTED policeStationId:", policeStationId);
 
       if (!policeStationId) {
-        console.error(" register-police called without policeStationId");
+        console.error("register-police called without policeStationId");
         return;
       }
-      //
+
       const oldSocket = onlinePolice.get(policeStationId);
       if (oldSocket && oldSocket.id !== socket.id) {
         oldSocket.disconnect(true);
       }
+
       socket.policeStationId = policeStationId;
       onlinePolice.set(policeStationId, socket);
+
       console.log(policeStationId);
       console.log("ONLINE USERS:", [...onlineUsers.keys()]);
       console.log("ONLINE POLICE:", [...onlinePolice.keys()]);
     });
 
-    /*
-     LIVE LOCATION (ONLINE MODE)
-     NO FCM HERE
- */
-
-    //  socket.on("send-location", async ({ latitude, longitude }) => {
+    /* LIVE LOCATION */
     socket.on("send-location", async (payload) => {
       console.log("RAW LOCATION PAYLOAD:", payload);
 
-      // Handle string JSON (Postman case)
       if (typeof payload === "string") {
         try {
           payload = JSON.parse(payload);
         } catch {
-          console.error(" Invalid JSON string in send-location");
+          console.error("Invalid JSON string in send-location");
           return;
         }
       }
 
-      // Validate payload object
       if (!payload || typeof payload !== "object") {
-        console.error(" send-location payload is not an object");
+        console.error("send-location payload is not an object");
         return;
       }
 
       const { latitude, longitude } = payload;
 
-      // Validate values
       if (typeof latitude !== "number" || typeof longitude !== "number") {
         console.error("Invalid latitude/longitude:", payload);
         return;
       }
-      //
+
       const userId = socket.userId;
       if (!userId) return;
 
-      // save last location
-      userLastLocation.set(userId, {
-        latitude,
-        longitude,
-        time: Date.now(),
-      });
+      userLastLocation.set(userId, { latitude, longitude, time: Date.now() });
 
-      // 🔹 find nearest friends
       const user = await User.findById(userId).select("friends name _id");
       if (!user) return;
 
-      const nearestFriends = await User.aggregate([
-        {
-          $geoNear: {
-            near: { type: "Point", coordinates: [longitude, latitude] },
-            distanceField: "distance",
-            spherical: true,
-            query: { _id: { $in: user.friends } },
-          },
-        },
-        { $project: { uid: 1, _id: 1 } },
+      // FIX: fetch ALL friends, no proximity filter
+      // $geoNear was silently returning nothing because users have no stored location field
+      const allFriends = await User.find(
+        { _id: { $in: user.friends } },
+        { _id: 1 }
+      ).lean();
 
-        { $limit: 5 },
-      ]); /////////////////////////////////////////////////////////////////////////////////////////////////
-
-      // 🔹 find nearest police stations
       const nearestStations = await PoliceStation.aggregate([
         {
           $geoNear: {
@@ -175,18 +143,14 @@ const initSockets = (io) => {
           },
         },
         { $project: { policeStationId: 1, _id: 1 } },
-
         { $limit: 5 },
       ]);
 
-      // emit live location (ONLINE ONLY)
-
-      nearestFriends.forEach((friend) => {
+      allFriends.forEach((friend) => {
         const friendId = friend._id.toString();
-
         console.log("Checking friend:", friendId);
 
-        const s = onlineUsers.get(friendId); // Use Mongo ID
+        const s = onlineUsers.get(friendId);
         if (s) {
           console.log("Emitting location to online friend:", friendId);
           s.emit("friend-live-location", {
@@ -201,8 +165,7 @@ const initSockets = (io) => {
       });
 
       nearestStations.forEach((station) => {
-        const s = onlinePolice.get(station.policeStationId); //it is police id
-
+        const s = onlinePolice.get(station.policeStationId);
         if (s) {
           s.emit("user-live-location", {
             userId,
@@ -216,18 +179,12 @@ const initSockets = (io) => {
       });
     });
 
-    /*
-     DISCONNECT (OFFLINE MODE)
-     SOCKET + FCM
- */
-
+    /* DISCONNECT */
     socket.on("disconnect", async () => {
       console.log("Socket disconnected:", socket.id);
 
       const userId = socket.userId;
-      const policeId = socket.policeStationId;
 
-      /* USER DISCONNECT */
       if (userId) {
         onlineUsers.delete(userId);
 
@@ -235,49 +192,22 @@ const initSockets = (io) => {
         console.log("ONLINE USERS:", [...onlineUsers.keys()]);
         console.log("ONLINE POLICE:", [...onlinePolice.keys()]);
 
+        // FIX: always clean up, get value before deleting
         const lastLocation = userLastLocation.get(userId);
+        userLastLocation.delete(userId);
+
         if (!lastLocation) return;
 
         const { latitude, longitude } = lastLocation;
 
-        /* 🔹 1. REMOVE MARKERS (ONLINE CLIENTS) */
-
-        // friends
-        onlineUsers.forEach((s) => {
-          s.emit("user-offline", { userId });
-        });
-
-        // police
-        onlinePolice.forEach((s) => {
-          s.emit("user-offline", { userId });
-        });
-
-        /*  FIND NEAREST (ONCE) FOR FCM */
-        //even if once device disconnct must fire notification logic so ....
+        onlineUsers.forEach((s) => s.emit("user-offline", { userId }));
+        onlinePolice.forEach((s) => s.emit("user-offline", { userId }));
 
         const user = await User.findById(userId).select("friends name");
         if (!user) return;
 
-        // const nearestFriends = await User.aggregate([
-        //   {
-        //     $geoNear: {
-        //       near: {
-        //         type: "Point",
-        //         coordinates: [longitude, latitude],
-        //       },
-        //       distanceField: "distance",
-        //       spherical: true,
-        //       query: { _id: { $in: user.friends } },
-        //     },
-        //   },
-        //   { $limit: 20 },//20 is more than enough
-        // ]);
         const nearestFriends = await User.aggregate([
-          {
-            $match: {
-              _id: { $in: user.friends },
-            },
-          },
+          { $match: { _id: { $in: user.friends } } },
         ]);
 
         const nearestStations = await PoliceStation.aggregate([
@@ -289,19 +219,15 @@ const initSockets = (io) => {
             },
           },
           { $project: { policeStationId: 1, _id: 1 } },
-
           { $limit: 5 },
         ]);
 
-        /* SEND FCM (OFFLINE / SAFETY ALERT) */
-        //friend Fcm
         for (const friend of nearestFriends) {
           const tokens = await FcmToken.find({
             ownerType: "User",
             owner: friend._id,
             isActive: true,
           });
-
           for (const fcm of tokens) {
             console.log("notification sending...");
             await sendFCMNotification({
@@ -319,14 +245,13 @@ const initSockets = (io) => {
             console.log("notification sent");
           }
         }
-        // police FCM
+
         for (const station of nearestStations) {
           const tokens = await FcmToken.find({
             ownerType: "PoliceStation",
             owner: station._id,
             isActive: true,
           });
-
           for (const fcm of tokens) {
             console.log("notification sending...");
             await sendFCMNotification({
@@ -344,13 +269,10 @@ const initSockets = (io) => {
             console.log("notification sent");
           }
         }
-        userLastLocation.delete(userId);
       }
 
-      /* POLICE DISCONNECT*/
       if (socket.policeStationId) {
         const policeId = socket.policeStationId;
-
         if (onlinePolice.get(policeId) === socket) {
           onlinePolice.delete(policeId);
           console.log("POLICE OFFLINE:", policeId);
@@ -363,14 +285,3 @@ const initSockets = (io) => {
 };
 
 export default initSockets;
-// User:
-// - Socket ID  → uid
-// - DB lookup  → uid
-// - Relations  → Mo _id
-
-// Police:
-// - Socket ID  → policeId
-// - DB lookup  → policeId
-// - FCM owner  → Mo _id
-//police connection check and on using station id
-//police fcm mongooseid
