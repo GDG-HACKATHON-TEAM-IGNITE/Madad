@@ -11,38 +11,37 @@ import "leaflet/dist/leaflet.css";
 import { socket } from "../sockets/sockets";
 import { getAuth } from "firebase/auth";
 
-// Leaflet icon fix
 import icon from "leaflet/dist/images/marker-icon.png";
 import shadow from "leaflet/dist/images/marker-shadow.png";
 
-const DefaultIcon = L.icon({
+// Fix default icon
+L.Marker.prototype.options.icon = L.icon({
     iconUrl: icon,
     shadowUrl: shadow,
     iconSize: [25, 41],
     iconAnchor: [12, 41],
 });
-L.Marker.prototype.options.icon = DefaultIcon;
 
-// 🔴 Red Icon for Friends
-const RedIcon = L.icon({
-    iconUrl: icon,
-    shadowUrl: shadow,
-    iconSize: [25, 41],
-    iconAnchor: [12, 41],
-    className: "red-filter-marker"
-});
+// Factory so each marker gets its own icon instance (prevents overlap glitch)
+const makeRedIcon = () =>
+    L.icon({
+        iconUrl: icon,
+        shadowUrl: shadow,
+        iconSize: [25, 41],
+        iconAnchor: [12, 41],
+        className: "red-filter-marker",
+    });
 
 const defaultCenter = [20.2961, 85.8245];
 
-// Auto-center on self (ONLY ONCE)
+// Centers map on self — only once
 const Recenter = ({ lat, lng }) => {
     const map = useMap();
-    const isCentered = useRef(false);
-
+    const centered = useRef(false);
     useEffect(() => {
-        if (!isCentered.current && lat && lng) {
+        if (!centered.current && lat && lng) {
             map.setView([lat, lng], 15);
-            isCentered.current = true;
+            centered.current = true;
         }
     }, [lat, lng, map]);
     return null;
@@ -51,39 +50,55 @@ const Recenter = ({ lat, lng }) => {
 export default function FriendMap() {
     const [myLocation, setMyLocation] = useState(null);
     const [friends, setFriends] = useState({});
+    const watchIdRef = useRef(null);
+    const registeredRef = useRef(false);
 
-    // 🔐 REGISTER
+    // Register once — guard against re-mount double-register
     useEffect(() => {
+        if (registeredRef.current) return;
+
         const register = async () => {
             const auth = getAuth();
             const user = auth.currentUser;
-            if (user) {
-                console.log("Socket Registering User:", user.uid);
-                const token = await user.getIdToken();
-                if (!socket.connected) socket.connect();
-                socket.emit("register-user", { token });
-            }
+            if (!user) return;
+
+            const token = await user.getIdToken();
+            if (!socket.connected) socket.connect();
+            socket.emit("register-user", { token });
+            registeredRef.current = true;
         };
+
         register();
     }, []);
 
-    // 📍 OWN LOCATION (view only)
+    // Watch own location and continuously emit to backend
     useEffect(() => {
         if (!navigator.geolocation) return;
 
-        navigator.geolocation.getCurrentPosition(
-            ({ coords }) => {
-                setMyLocation({
-                    latitude: coords.latitude,
-                    longitude: coords.longitude,
-                });
-            },
-            (err) => console.error("Geo error:", err),
-            { enableHighAccuracy: true }
+        const onSuccess = ({ coords }) => {
+            const { latitude, longitude } = coords;
+            setMyLocation({ latitude, longitude });
+            // Broadcast to server so friends receive updates
+            socket.emit("send-location", { latitude, longitude });
+        };
+
+        const onError = (err) => console.error("Geo error:", err);
+
+        watchIdRef.current = navigator.geolocation.watchPosition(
+            onSuccess,
+            onError,
+            { enableHighAccuracy: true, maximumAge: 5000, timeout: 10000 }
         );
+
+        return () => {
+            if (watchIdRef.current !== null) {
+                navigator.geolocation.clearWatch(watchIdRef.current);
+                watchIdRef.current = null;
+            }
+        };
     }, []);
 
-    // 👥 FRIEND LOCATIONS
+    // Listen for friend location updates and offline events
     useEffect(() => {
         const handleFriendLocation = ({ userId, latitude, longitude, name }) => {
             setFriends((prev) => ({
@@ -93,10 +108,10 @@ export default function FriendMap() {
         };
 
         const handleOffline = ({ userId }) => {
-            setFriends(prev => {
-                const newFriends = { ...prev };
-                delete newFriends[userId];
-                return newFriends;
+            setFriends((prev) => {
+                const next = { ...prev };
+                delete next[userId];
+                return next;
             });
         };
 
@@ -121,40 +136,31 @@ export default function FriendMap() {
                     url="https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png"
                 />
 
-                {/* 🔴 You */}
                 {myLocation && (
                     <>
                         <Marker position={[myLocation.latitude, myLocation.longitude]}>
                             <Popup>You are here</Popup>
                         </Marker>
-                        <Recenter
-                            lat={myLocation.latitude}
-                            lng={myLocation.longitude}
-                        />
+                        <Recenter lat={myLocation.latitude} lng={myLocation.longitude} />
                     </>
                 )}
 
-                {/* 👥 Friends */}
                 {Object.entries(friends).map(([id, loc]) => (
                     <Marker
                         key={id}
                         position={[loc.latitude, loc.longitude]}
-                        icon={RedIcon}
+                        icon={makeRedIcon()}
                     >
                         <Popup>
-                            <strong>Name:</strong> {loc.name || "Friend"} <br />
+                            <strong>{loc.name || "Friend"}</strong>
                         </Popup>
                     </Marker>
                 ))}
             </MapContainer>
 
-            <style>
-                {`
-                    .red-filter-marker {
-                        filter: hue-rotate(150deg);
-                    }
-                `}
-            </style>
+            <style>{`
+                .red-filter-marker { filter: hue-rotate(150deg); }
+            `}</style>
         </div>
     );
 }
